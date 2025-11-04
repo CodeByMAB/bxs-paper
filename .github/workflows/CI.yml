@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+
+jobs:
+  python-ci:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          # If you add a requirements.txt later, pip install -r requirements.txt
+          pip install pandas numpy ruff
+
+      - name: Lint (ruff)
+        run: |
+          ruff --version
+          ruff check .
+
+      - name: Smoke test (legacy CLI)
+        run: |
+          chmod +x ./main.py
+          ./main.py --input example_data_legacy.csv --rho-per-year 0.05 --alpha 1 --beta 1 --gamma 1
+
+      - name: Smoke test (durability flow scaffold)
+        if: hashFiles('tools/compute_f.py') != ''
+        run: |
+          python tools/compute_f.py tools/example_data_bxs.csv || true
+
+      - name: Upload JSON report (if present)
+        uses: actions/upload-artifact@v4
+        with:
+          name: bs_report-json
+          path: |
+            bs_report.json
+          if-no-files-found: ignore
