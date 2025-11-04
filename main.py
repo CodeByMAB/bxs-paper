@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 # Bitcoin-Seconds CLI: compute BS_rho(T) from CSV time series
-import argparse, json, os
+import argparse
+import json
+import os
 from datetime import datetime
 import pandas as pd
 import numpy as np

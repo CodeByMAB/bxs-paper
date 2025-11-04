@@ -1,4 +1,5 @@
-import csv, math, sys
+import csv
+import sys
 from datetime import datetime, timezone
 
 def parse_ts(s):
@@ -8,17 +9,22 @@ def parse_ts(s):
         return float(s)
 
 def row_f(row):
-    A = float(row["A"]); A0 = float(row["A0"]) or 1.0
-    I = float(row["I"]); I0 = float(row["I0"]) or 1.0
+    A = float(row["A"])
+    A0 = float(row["A0"]) or 1.0
+    capital_i = float(row["I"])  # renamed from "I" to avoid E741
+    capital_i0 = float(row["I0"]) or 1.0
     i = float(row["i"])
-    tmin = float(row["tmin"]); mumin = float(row["mumin"])
+    tmin = float(row["tmin"])
+    mumin = float(row["mumin"])
     mu = max(float(row["mu"]), mumin)
-    CP = float(row["CP"]); r = float(row["r"]); s_bal = float(row["W"])
+    CP = float(row["CP"])
+    r = float(row["r"])
+    s_bal = float(row["W"])
     # elapsed time since first row handled in integrate step; SSR uses floor tmin to avoid div-by-zero
     SSR_num = s_bal + r * i - CP
     SSR_den = max(tmin, tmin) * mu  # placeholder until you pass actual elapsed t
     SSR = SSR_num / SSR_den
-    return i * (A / A0) * (I / I0) * max(SSR, 0.0)
+    return i * (A / A0) * (capital_i / capital_i0) * max(SSR, 0.0)
 
 def main(path):
     with open(path) as f:
@@ -26,7 +32,8 @@ def main(path):
     # integrate per-sample using trapezoid with Δt from timestamps
     ts = [parse_ts(r["timestamp"]) for r in rows]
     fs = [row_f(r) for r in rows]
-    S = 0.0; BXS = 0.0
+    S = 0.0
+    BXS = 0.0
     for k in range(1, len(rows)):
         dt = ts[k] - ts[k-1]
         f_mid = 0.5 * (fs[k] + fs[k-1])
