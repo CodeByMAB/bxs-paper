@@ -1,0 +1,431 @@
+\documentclass{article}
+\usepackage{booktabs,tabularx,ragged2e}
+\newcolumntype{L}{>{\RaggedRight\arraybackslash}X} % left-aligned X col
+
+
+% ----------------- Packages -----------------
+\usepackage[a4paper, margin=1.15in]{geometry}
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{array}
+\usepackage{caption}
+
+% ----------------- Macros -----------------
+% \newcommand{\sats}{\mathrm{sats}}
+\newcommand{\BTC}{\mathrm{BTC}}
+% \newcommand{\sper}{\mathrm{s}^{-1}}
+% \newcommand{\sps}{\mathrm{sats}\,\mathrm{s}^{-1}}
+\newcommand{\BXS}{\mathrm{BTC}\!\cdot\!\mathrm{s}}
+% \newcommand{\SXS}{\mathrm{sats}\!\cdot\!\mathrm{s}}
+\newcommand{\BY}{\mathrm{BTC}\!\cdot\!\mathrm{yr}}
+\newcommand{\SY}{\mathrm{sats}\!\cdot\!\mathrm{yr}}
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\Var}{\mathrm{Var}}
+
+% --- Units & operators (math-safe) ---
+\usepackage{amsmath}
+
+\newcommand{\sats}{\ensuremath{\mathrm{sats}}}
+\newcommand{\sper}{\ensuremath{\mathrm{s}^{-1}}}            % per second
+\newcommand{\sps}{\ensuremath{\mathrm{sats}\,\mathrm{s}^{-1}}} % sats per second
+\newcommand{\sxs}{\ensuremath{\mathrm{sats}\,\mathrm{s}}}      % sats·s
+\newcommand{\SXS}{\sxs}                                      % alias if you prefer caps
+% (Optional BTC versions)
+\newcommand{\bps}{\ensuremath{\mathrm{BTC}\,\mathrm{s}^{-1}}}
+\newcommand{\bxs}{\ensuremath{\mathrm{BTC}\,\mathrm{s}}}
+
+
+\title{Bitcoin-Seconds (BXS): Measuring Durable Accumulation of Time-Shifted Energy Claims\\
+\large Version 0.6.7 (for Peer Review)}
+\author{MAB \and Navi (GPT-5)}
+\date{November 2025}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Bitcoin converts present energy expenditure into cryptographically proven, transferable claims on future energy and work. We propose a Bitcoin-native temporal calculus that measures the \emph{durability} of those claims through time. The framework forms a three-level ladder: (i) an instantaneous flow \(f(t)\) in \(\sps\) capturing the rate of accumulating \emph{durable} energy claims, (ii) its cumulative integral \(S(T)\) in \(\sats\), and (iii) the time-weighted integral \(\mathrm{BXS}(T)\) in \(\SXS\) (Bitcoin-Seconds). Each driver of durability is observable: income velocity, revealed HODLing strength (coin age), protocol dilution (mechanical inflation), and financial runway. We state falsifiable hypotheses, a node-local implementation, and a backtest recipe to validate that durability-aware measures add information beyond balance, coin age, and ROI.
+\end{abstract}
+
+% ------------------------------------------------
+\section{Foundation: Bitcoin as Time-Shifted Energy Claims}
+Proof-of-Work turns present energy expenditure into a cryptographic record that persists and becomes a transferable claim on future energy and work. 
+When Satoshi mined 50 \(\BTC\) per block in 2009--2010, the marginal dollar cost of electricity was tiny; today that same 50 \(\BTC\) can command millions of dollars in labor and energy. 
+Thus, energy expended in 2009 was preserved as a transferable claim across sixteen years of halvings, market cycles, and protocol upgrades. 
+\emph{This temporal persistence of energy claims is what Bitcoin-Seconds aims to measure.}
+We seek to quantify not only \emph{how much} Bitcoin is held or earned, but \emph{how durably} those claims persist through time and conditions.
+
+% ------------------------------------------------
+\section{Measurement Problem: Durable vs. Transient Accumulation}
+Not all Bitcoin accumulation is equal. Some flows are quickly liquidated (transient), others are held and financially sustainable (durable). Balance and coin age alone cannot distinguish between an entity accumulating under stress (low runway, forced to sell soon) versus one accumulating sustainably (high runway, demonstrated HODLing). The BXS framework provides this distinction by weighting flows with coin-age, protocol-era context, and surplus-to-spending runway.
+We ask: \emph{What is the rate at which an entity accumulates durable energy claims, and how does that durability persist through time?} 
+
+\newpage
+% ------------------------------------------------
+\section{Drivers and Notation}
+Let \(t\in[0,T]\) be time in seconds. All series are assumed piecewise continuous and integrable on \([0,T]\).
+\begin{itemize}
+  \item \(i(t)\): income inflow \([\sps]\).
+  \item \(\mu(t)\): spending outflow \([\sps]\).
+  \item \(A(t)\): value-weighted coin age (revealed HODLing strength) \([\mathrm{s}]\).
+  \item \(I(t)\): protocol monetary expansion rate \([\sper]\), defined mechanically as
+  \[
+  I(t) \;=\; \frac{\sigma\!\left(h(t)\right)}{S(t)}\,\lambda(t),
+  \]
+  where subsidy \(\sigma\) is in \(\BTC\) per block, circulating supply \(S\) in \(\BTC\), and \(\lambda\) is blocks per second.
+  \item \(s(t)\): current holdings \([\sats]\).
+  \item \(r\): retirement (forward) horizon \([\mathrm{s}]\).
+  \item \(CP(t)\): cumulative inflation-adjusted cost (optional) \([\sats]\).
+\end{itemize}
+\textbf{Baselines.} Choose positive baselines \(A_0>0\) and \(I_0>0\) for normalization. Unless stated otherwise: \(A_0\) is a rolling 180-day median of \(A(t)\) per entity; \(I_0\) is a per-epoch rolling median of \(I(t)\). We will evaluate robustness to baseline windows in sensitivity checks.
+
+\paragraph{Surplus-to-Spending Ratio (SSR).}
+\emph{Intuition:} SSR measures \emph{financial runway}: how long can holdings sustain current spending, adjusted for future income? 
+\[
+\mathrm{SSR}(t) \;=\; \frac{s(t) + r\,i(t) - CP(t)}{\max\{t,t_{\min}\}\,\max\{\mu(t),\mu_{\min}\}}\quad \text{(dimensionless)}.
+\]
+Numerator: current savings plus forward income capacity minus past costs. 
+Denominator: elapsed time multiplied by present spending rate. 
+Floors \(t_{\min}>0\), \(\mu_{\min}>0\) avoid division by zero at startup or near-zero spending. Negative \(\mathrm{SSR}(t)\) indicates drawdown pressure; we do not clip negatives.
+
+% ------------------------------------------------
+\section{Instantaneous Flow of Durable Claims}
+\begin{equation}
+\boxed{ f(t) \;=\; i(t)\;\cdot\; \frac{A(t)}{A_0}\;\cdot\; \frac{I(t)}{I_0}\;\cdot\; \mathrm{SSR}(t) } \label{eq:flow}
+\end{equation}
+
+\noindent \textbf{Units and meaning.} \(f(t)\) is in \(\sps\) (BTC/s or sats/s). It is the \emph{rate of accumulating durable energy claims}, i.e., income weighted by:
+\begin{enumerate}
+  \item \(A(t)/A_0\): revealed HODLing strength (demonstrated time preference),
+  \item \(I(t)/I_0\): protocol-era context (dilution/halving environment),
+  \item \(\mathrm{SSR}(t)\): financial runway to maintain claims (ability vs.\ intent).
+\end{enumerate}
+\noindent \textbf{At-a-glance recap.}
+\[
+\mathrm{SSR}(t)=\frac{s(t)+r\,i(t)-CP(t)}{\max\{t,t_{\min}\}\,\max\{\mu(t),\mu_{\min}\}},\quad
+S(T)=\int_0^T f(t)\,dt,\quad
+\mathrm{BXS}(T)=\int_0^T S(t)\,dt.
+\]
+\paragraph{Why multiplicative?}
+Durable accumulation requires all dimensions to align; failure in any one dimension (e.g., no runway, low age, high dilution) lowers effective durable flow. Multiplication captures these interaction effects parsimoniously.
+
+% ------------------------------------------------
+\section{Integration Ladder: BTC/s \texorpdfstring{$\rightarrow$}{->} BTC \texorpdfstring{$\rightarrow$}{->} BTC$\cdot$s}
+
+\begin{figure}[h]
+\centering
+\fbox{\parbox{0.92\linewidth}{
+\textbf{Ladder Schema (informational)}\\[4pt]
+Level 1 (Flow): \( f(t) \) in \(\sps\) \(\rightarrow\) rate of accumulating \emph{durable} energy claims.\\[2pt]
+Level 2 (Stock): \( S(T)=\int_0^T f(t)\,dt \) in \(\sats\) \(\rightarrow\) total durable claims accumulated.\\[2pt]
+Level 3 (Time-Weighted): \( \mathrm{BXS}(T)=\int_0^T S(t)\,dt \) in \(\SXS\) \(\rightarrow\) persistence of claims (amount \emph{and} duration).\\[4pt]
+Baseline comparator (size-only): \( \mathrm{BXS}_{\mathrm{core}}(T)=\int_0^T W(t)\,dt \).
+}}
+\caption{BTC/s \(\rightarrow\) BTC \(\rightarrow\) BTC\(\cdot\)s ladder and interpretation.}
+\label{fig:ladder}
+\end{figure}
+
+\subsection{Level 1: Flow}
+\(f(t)\) in \(\sps\): rate of accumulating durable energy claims.
+
+\subsection{Level 2: Stock}
+\begin{equation}
+\boxed{ S(T) \;=\; \int_{0}^{T} f(t)\,dt } \quad [\sats] \label{eq:stock}
+\end{equation}
+
+\subsection{Level 3: Time-Weighted Stock (Bitcoin-Seconds)}
+\begin{equation}
+\boxed{ \mathrm{BXS}(T) \;=\; \int_{0}^{T} S(t)\,dt \;=\; \int_{0}^{T}\!\!\int_{0}^{t} f(\tau)\,d\tau\,dt } \quad [\SXS] \label{eq:bxs}
+\end{equation}
+
+\paragraph{Baseline persistence.}
+For benchmarking, define the size-only persistence
+\begin{equation}
+\boxed{ \mathrm{BXS}_{\mathrm{core}}(T) \;=\; \int_{0}^{T} W(t)\,dt } \quad [\SXS] \label{eq:bxs_core}
+\end{equation}
+with \(W(t)\) the balance in sats. This omits durability adjustments. Optionally, discount by \(e^{-\rho t}\) for time preference.
+
+\paragraph{Units callout.}
+\(f(t)\): BTC/s (sats/s). \(S(T)\): BTC (sats). \(\mathrm{BXS}(T)\): BTC\(\cdot\)s (sats\(\cdot\)s).
+
+\paragraph{Scaling for readability.}
+Report \(\mathrm{BXS}\) also in BTC\(\cdot\)years by dividing by \(31{,}536{,}000\), i.e., \(\mathrm{BXS}^{(\mathrm{yr})} = \mathrm{BXS}/(365\cdot 24\cdot 3600)\).
+
+% ------------------------------------------------
+\section{Mechanical Inflation \(I(t)\) and Per-Block Form}
+We compute \(I(t)\) from node-local telemetry:
+\[
+I(t) \;=\; \frac{\sigma(h(t))}{S(t)}\,\lambda(t),
+\]
+which automatically reflects halving epochs and cadence variation. For block-indexed code, a per-block constant form is useful:
+\[
+I_k \;=\; \frac{\sigma_k}{S_k}\cdot \frac{1}{\tau_{\mathrm{target}}}
+\quad\text{with}\quad \tau_{\mathrm{target}}=600\ \mathrm{s},
+\]
+and an empirical per-second series obtained by smoothing observed inter-block times.
+
+\newpage
+% ------------------------------------------------
+\section{Comparative View of Metrics}
+\begin{table}[ht]
+\centering
+\caption{What each metric captures and misses.}
+\label{tab:compare}
+\setlength{\tabcolsep}{6pt}            % tighter col padding
+\renewcommand{\arraystretch}{1.15}     % a bit more row height
+\begin{tabularx}{\textwidth}{@{}l L L l@{}}
+\toprule
+\textbf{Metric} & \textbf{Captures} & \textbf{Misses} & \textbf{Use Case} \\
+\midrule
+Balance \(W(t)\) & Amount held (size) & Duration, behavior, runway, network era & Snapshot wealth \\
+Coin Age \(A(t)\) & HODLing duration (revealed behavior) & Size, financial capacity, network era & HODL strength \\
+ROI (fiat) & Fiat-relative returns & Bitcoin-native dynamics, durability & Fiat-world performance \\
+\(\mathrm{BXS}_{\mathrm{core}}\) & Size \(\times\) Time (persistence) & Durability factors (A/I/SSR) & Neutral persistence \\
+\textbf{BXS (durability)} & \textbf{Size \(\times\) Time \(\times\) HODLing \(\times\) Network \(\times\) Runway} & \textbf{Aims to miss nothing} & \textbf{Durable claim accumulation} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+% ------------------------------------------------
+\section{Illustrative Magnitudes (Orientation Only)}
+\subsection*{Satoshi-like holder (size-only core)}
+Let \(W \approx 9.68452\times 10^{13}\ \sats\) and \(T \approx 4.0\times 10^{8}\ \mathrm{s}\).
+Then
+\[
+\mathrm{BXS}_{\mathrm{core}}(T) \approx W\,T \approx 3.87\times 10^{22}\ \SXS \;\; (\approx 1.23\times 10^{15}\ \SY).
+\]
+This anchors the scale of raw persistence without durability adjustments.
+
+\begin{table}[h]
+\centering
+\caption{Three-point illustration (orders of magnitude only). Baselines: \(A_0=3.0\times 10^{7}\ \mathrm{s}\), \(I_0=2.6\times 10^{-10}\ \sper\); floors: \(t_{\min}=10^{3}\ \mathrm{s}\), \(\mu_{\min}=10^{-6}\ \sps\).}
+\label{tab:threepoint}
+\begin{tabular}{@{}lrrrrr@{}}
+\toprule
+Case & $W$ (sats) & $A/A_0$ & $I/I_0$ & SSR & $f$ (sats/s) \\
+\midrule
+Satoshi-like & $9.68\times 10^{13}$ & $13.3$ & $115.4$ & $2.4\times 10^{9}$ & $3.7\times 10^{12}$ \\
+Modest ($\sim$1.2 BTC) & $1.2\times 10^{8}$ & $1.0$ & $1.0$ & $10^{2}$ & $10^{4}$ \\
+Micro (0.001337 BTC) & $1.34\times 10^{5}$ & $0.07$ & $1.0$ & $10^{1}$ & $3\times 10^{1}$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Numbers are illustrative only; calibrated estimates require entity-specific series.
+
+% ------------------------------------------------
+\section{Implementation (Node-Local, Sovereign)}
+All inputs are computed from a Start9-hosted \emph{mempool.space} and wallet logs:
+\begin{itemize}
+  \item \(I(t)\) from subsidy, supply, and measured cadence.
+  \item \(A(t)\), \(W(t)\), \(i(t)\), \(\mu(t)\) from UTXO histories and inflow/outflow rates.
+  \item \(CP(t)\) optional; omit for strictly Bitcoin-native analysis.
+  \item Floors \(t_{\min},\mu_{\min}\) applied as in the SSR definition.
+\end{itemize}
+This ensures privacy, integrity, and reproducibility without third-party APIs.
+\subsection{Implementation Notes (Node-Local)}
+We compute $I(t)=\sigma/S \cdot \lambda$ per block from a Start9-hosted \texttt{mempool.space};
+$W, A, i, \mu$ derive from wallet RPC and UTXO histories. Series are persisted to SQLite with tables
+\texttt{blocks(h,t,sigma,S,lambda,I)}, \texttt{wallet(t,W,A,i,mu,CP,SSR,f)}, and \texttt{metrics(t,S\_cum,BXS\_cum)}.
+We expose read-only endpoints for $f(t)$, $S(T)$, $BXS(T)$, and emit alerts when $\Delta f(t) \le -20\%$ over 14d.
+Edge cases: use floors $t_{\min}$, $\mu_{\min}$; retain negative $SSR$; mark new wallets (insufficient history) as “warming up.”
+
+\newpage
+% ------------------------------------------------
+\section{Empirical Design and Validation}
+\label{sec:empirical}
+
+\paragraph{Outcome (pre-registered).}
+For entity $j$ at time $t$, define
+\[
+\mathrm{HOLD}_{j,t} =
+\begin{cases}
+1 & \text{if net outflows over } [t, t+\Delta] \le x\% \cdot W_j(t),\\
+0 & \text{otherwise,}
+\end{cases}
+\]
+with $\Delta = 90$ days and $x = 5\%$. We will report sensitivity analyses for
+$\Delta \in \{60,120,180\}$ and $x \in \{2\%,10\%\}$.
+
+\paragraph{Feature construction.}
+Per-wallet time series at block cadence: $W(t)$ (balance), $A(t)$ (value-weighted
+coin age), $i(t)$ (inflow rate), $\mu(t)$ (outflow rate), $I(t)$ (mechanical
+expansion rate $\sigma/S \cdot \lambda$), and $CP(t)$ (optional cumulative CPI-weighted cost).
+We compute $SSR(t) = \frac{W(t) + r\,i(t) - CP(t)}{\max\{t, t_{\min}\}\,\max\{\mu(t), \mu_{\min}\}}$
+and $f(t) = i(t)\,\frac{A(t)}{A_0}\,\frac{I(t)}{I_0}\,SSR(t)$ with floors
+$t_{\min}>0$, $\mu_{\min}>0$ and rolling baselines $A_0, I_0$ (default: 180-day medians, per-epoch for $I_0$).
+Negative $SSR(t)$ values are \emph{retained} to signal drawdown pressure.
+
+\paragraph{Model set (pre-registered).}
+We avoid multicollinearity by comparing two \emph{non-nested} models:
+\begin{itemize}
+  \item \textbf{Components model (CM):} $\mathrm{HOLD} \sim W(t) + A(t) + I(t) + SSR(t)$
+  \item \textbf{Scalar model (SM):} $\mathrm{HOLD} \sim f(t)$
+\end{itemize}
+We also report an \emph{ensemble} $\hat p_{\text{ENS}} = \tfrac12(\hat p_{\text{CM}} + \hat p_{\text{SM}})$.
+
+\paragraph{Evaluation.}
+Rolling-origin cross-validation over time.
+Primary metrics: out-of-sample AUC and Brier score. We compare CM vs.\ SM with
+Diebold–Mariano tests for predictive accuracy and by AICc on a \emph{common}
+validation window. We report calibration (reliability plots) and survival curves
+(holding probability) stratified by $f(t)$ quartiles.
+
+\paragraph{Hypotheses (pre-registered).}
+\begin{description}
+  \item[H1 (Durability).] Higher $f(t)$ at $t$ predicts higher $\Pr(\mathrm{HOLD}=1)$ over $[t,t+\Delta]$
+    than balance-only comparators. Success: SM AUC exceeds $W(t)$-only baseline by $\ge 0.05$.
+  \item[H2 (Stress / Early warning).] Large declines $\Delta f(t) \le -20\%$ over 14 days predict
+    liquidation events within 30 days with useful lead time. Success: TPR $>60\%$ at FPR $<30\%$; mean lead time $>14$ days.
+  \item[H3 (Component value).] CM and SM provide complementary information. Success:
+    ENS outperforms both CM and SM on AUC and Brier with statistically significant gains.
+\end{description}
+
+\paragraph{Robustness.}
+We vary $(\Delta,x)$; change baseline windows for $(A_0,I_0) \in \{90,180,360\}$ days; split by regimes (post-halving,
+bear/bull/sideways); and test caps on $SSR$ as a guardrail (reporting both capped/uncapped).
+We discuss address clustering and self-churn adjustments for $A(t), i(t), \mu(t)$.
+
+
+% ------------------------------------------------
+\section{Applications}
+\begin{itemize}
+  \item \textbf{Individuals:} Personal durability dashboard; track \(f(t),S(T),\mathrm{BXS}(T)\); alerts when runway weakens.
+  \item \textbf{Analytics:} Identify cohorts likely to hold vs.\ capitulate; map durability across the UTXO set.
+  \item \textbf{Forecasting:} Early warning for capitulation events based on \(f(t)\) deterioration.
+  \item \textbf{Treasury:} Corporate treasuries can monitor durability to guide cash management and issuance.
+  \item \textbf{Research:} Compare durability dynamics across miners, exchanges, whales, retail; study post-halving regimes.
+\end{itemize}
+
+% ------------------------------------------------
+\section{Conclusion}
+This paper introduced a durability-aware ladder \(f \rightarrow S \rightarrow \mathrm{BXS}\) that measures the rate, size, and temporal persistence of Bitcoin-denominated energy claims. The construction is Bitcoin-native: it begins with an instantaneous flow \(f(t)\) in sats/s that weights income by revealed HODLing strength, protocol-era dilution, and financial runway; integrates to a cumulative stock \(S(T)\) in sats; and integrates again to a time-weighted store \(\mathrm{BXS}(T)\) in sats\(\cdot\)s (Bitcoin-Seconds). In doing so, it distinguishes \emph{durable} accumulation from mere balance growth, providing a principled way to quantify how credibly energy claims persist through time.
+
+\paragraph{Substantive contribution.}
+The framework reframes Bitcoin as \emph{time-shifted energy claims} and operationalizes durability via three observable drivers: (i) demonstrated holding behavior (coin-age), (ii) mechanical supply context (protocol expansion), and (iii) financial capacity to maintain claims (surplus-to-spending runway). The multiplicative form captures the fact that failure in any one dimension erodes sustainable accumulation, while the integration ladder yields interpretable levels (flow, stock, time-weighted stock) with clean units.
+
+\paragraph{Practical relevance.}
+For individuals and treasuries, \(f(t)\) functions as a real-time \emph{durability signal}: it can complement balance, DCA plans, and risk budgets by indicating whether accumulation is likely to persist under stress. For analysts, \(\mathrm{BXS}(T)\) and \(\mathrm{BXS}_{\mathrm{core}}(T)\) separate \emph{size-only persistence} from \emph{durability-adjusted persistence}, enabling cohort comparisons (miners, exchanges, whales, retail) and regime studies across halving epochs. For forecasters, declines in \(f(t)\) offer a candidate early-warning indicator of capitulation risk that balance- or ROI-based metrics may miss.
+
+\paragraph{Empirical program.}
+We outlined falsifiable tests: (H1) whether higher \(f(t)\) predicts sustained holding, (H2) whether deteriorations in \(f(t)\) precede forced liquidation, and (H3) whether each component (coin-age, protocol rate, runway) adds incremental predictive power beyond balance and coin-age alone. A node-local implementation (Start9 + mempool.space) supports reproducibility without third-party dependencies, and a rolling-origin backtest with AUC/Brier comparisons and nested model tests (LR, AIC/BIC) provides an auditable validation path.
+
+\paragraph{Limitations and open questions.}
+The SSR term introduces modeling choices (e.g., floors, retirement horizon, treatment of contingent liabilities) that warrant sensitivity analysis. Coin-age can be confounded by UTXO management practices; robust value-weighting and address clustering are needed. Mechanical \(I(t)\) is well-defined, but its \emph{economic} weight may vary by cohort and epoch; this suggests exploring time-varying or cohort-specific baselines \((A_0, I_0)\). Lastly, interpretability under extreme conditions (near-zero spending, abrupt income shocks) motivates guardrails and capped variants for production dashboards.
+
+\paragraph{Extensions.}
+Natural next steps include: discounting \(\mathrm{BXS}(T)\) by explicit time preference; decomposing \(f(t)\) into permanent vs.\ transitory components via state-space models; cohort-level durability maps on the UTXO set; and policy applications (e.g., corporate treasury stress testing) where durability thresholds trigger risk actions. A standardized \(\mathrm{BXS}\) reporting schema (with BTC\(\cdot\)s and BTC\(\cdot\)years views) would aid comparability across entities.
+
+\paragraph{Outlook.}
+If validated, durability-aware flow \(f(t)\) and its integrals \(S(T)\), \(\mathrm{BXS}(T)\) provide a parsimonious, empirically testable lens on Bitcoin’s core phenomenon: the transport of past energy expenditure into durable, future claims. By measuring not only how much is held, but how credibly it will be \emph{held through time}, the Bitcoin-Seconds framework offers actionable guidance for savers, treasuries, and researchers, and a foundation for a broader time-based economics rooted in verifiable on-chain data.
+
+\newpage
+% ------------------------------------------------
+\appendix
+
+\section*{Appendix A: Units and Dimensional Checks}
+\[
+[f] = \sps,\quad [S] = \sats,\quad [\mathrm{BXS}] = \SXS.
+\]
+Each integration adds one factor of time, ensuring dimensional closure. Reporting \(\mathrm{BXS}\) in \(\BY\) or \(\SY\) improves readability.
+
+\section*{Appendix B: Edge Cases and Well-Posedness}
+\begin{itemize}
+  \item \(t\to 0\): use \(t\leftarrow\max\{t,t_{\min}\}\).
+  \item \(\mu(t)\to 0\): use \(\mu(t)\leftarrow\max\{\mu(t),\mu_{\min}\}\). Interpret very small \(\mu\) as large runway; optionally cap SSR at \(\mathrm{SSR}_{\max}\) in production dashboards.
+  \item Negative SSR: retain as a signal of drawdown pressure.
+  \item Baselines \(A_0,I_0\): use rolling medians; sensitivity-test 90/180/360-day windows and per-epoch settings.
+\end{itemize}
+
+\section*{Appendix C: Mechanical Form of \(I(t)\)}
+\[
+I(t) = \frac{\sigma(h(t))}{S(t)}\,\lambda(t),\qquad
+I_k = \frac{\sigma_k}{S_k}\cdot\frac{1}{\tau_{\mathrm{target}}},\ \ \tau_{\mathrm{target}}=600\ \mathrm{s}.
+\]
+Empirical cadence can deviate from target; smooth inter-block times to estimate a per-second \(I(t)\).
+
+% ------------------------------------------------
+\newpage
+\section*{Addendum: Glossary, Worked Examples, and How-To}
+
+\subsection*{A. Glossary of Symbols (units in brackets)}
+\begin{tabular}{@{}l l@{}}
+$i(t)$ & income inflow [\sps] \\
+$\mu(t)$ & spending outflow [\sps] \\
+$A(t)$ & value-weighted coin age (HODLing strength) [s] \\
+$A_0$ & coin-age baseline (e.g., rolling median) [s] \\
+$I(t)$ & protocol expansion rate [\sper] \\
+$I_0$ & expansion-rate baseline [\sper] \\
+$s(t)$ & current holdings [\sats] \\
+$r$ & retirement (forward) horizon [s] \\
+$CP(t)$ & cumulative CPI-weighted cost (optional) [\sats] \\
+$\mathrm{SSR}(t)$ & surplus-to-spending ratio [1] \\
+$f(t)$ & productive flow of durable claims [\sps] \\
+$S(T)$ & cumulative durable claims [\sats] \\
+$\mathrm{BXS}(T)$ & Bitcoin-Seconds (time-weighted claims) [\SXS] \\
+$\mathrm{BXS}_{\mathrm{core}}(T)$ & baseline time-weighted wealth $\int_0^T W(t)\,dt$ [\SXS] \\
+$W(t)$ & wealth (balance) [\sats] \\
+\end{tabular}
+
+
+\medskip
+\noindent\textbf{Definitions.}
+\[
+\mathrm{SSR}(t)=\frac{s(t)+r\,i(t)-CP(t)}{\max\{t,t_{\min}\}\,\max\{\mu(t),\mu_{\min}\}},
+\quad
+I(t)=\frac{\sigma(h(t))}{S(t)}\,\lambda(t),
+\]
+\[
+f(t)=i(t)\cdot\frac{A(t)}{A_0}\cdot\frac{I(t)}{I_0}\cdot\mathrm{SSR}(t),
+\quad
+S(T)=\int_0^T f(t)\,dt,
+\quad
+\mathrm{BXS}(T)=\int_0^T S(t)\,dt.
+\]
+
+\subsection*{B. Worked Example 1: Satoshi-like Holder (orientation)}
+\emph{Purpose: orders of magnitude; not a calibrated historical series.}
+\begin{itemize}
+\item Holdings: \(W \approx 9.68452\times 10^{13}\) sats; horizon \(T \approx 4.0\times 10^{8}\) s.
+\item Baselines: \(A_0=3.0\times 10^{7}\) s; \(I_0=2.6\times 10^{-10}\) s\(^{-1}\).
+\item Snapshot drivers (illustrative): \(A=4.0\times 10^{8}\) s; \(I=3.0\times 10^{-8}\) s\(^{-1}\);
+\(i=1.0\) sats s\(^{-1}\); \(\mu=1.0\times 10^{-4}\) sats s\(^{-1}\); \(r=2.0\times 10^{9}\) s; \(CP=0\).
+\end{itemize}
+\[
+\mathrm{SSR}\approx \frac{9.68452\times 10^{13}+2.0\times 10^{9}}{(4.0\times 10^{8})(1.0\times 10^{-4})}
+\approx 2.42\times 10^{9},\quad
+\frac{A}{A_0}\approx 13.33,\ \frac{I}{I_0}\approx 115.4,
+\]
+\[
+f(t)\approx 3.7\times 10^{12}\ \text{sats s}^{-1},\quad
+S(T)\approx 1.5\times 10^{21}\ \text{sats},\quad
+\mathrm{BXS}(T)\approx 3.0\times 10^{29}\ \text{sats s}.
+\]
+Baseline size-only persistence:
+\[
+\mathrm{BXS}_{\mathrm{core}}(T)=W\,T \approx 3.87\times 10^{22}\ \text{sats s}
+\quad (\approx 1.23\times 10^{15}\ \text{sats yr}).
+\]
+
+\subsection*{C. Worked Example 2: Regular Stacker (relatable)}
+\emph{Illustration only; orders of magnitude.} Alice dollar-cost-averages \$500 per month into Bitcoin for 24 months.
+Let $i(t)$ denote her average BTC inflow converted to sats/s, and $\mu(t)$ her spending rate.
+
+\textbf{Month 1.} $W \approx 5.0\times 10^{5}$ sats, $A \approx 1.3\times 10^{6}$ s (15 days), $\mathrm{SSR}$ low $\Rightarrow$ $f(t)$ modest.  
+\textbf{Month 12.} $W \approx 6.0\times 10^{6}$ sats, $A \approx 1.6\times 10^{7}$ s (180 days), $\mathrm{SSR}$ improving $\Rightarrow$ $f(t)$ rising.  
+\textbf{Month 24.} $W \approx 1.2\times 10^{7}$ sats, $A \approx 3.1\times 10^{7}$ s (360 days), $\mathrm{SSR}$ strong $\Rightarrow$ $f(t)$ high.
+
+Her balance $W(t)$ grows roughly linearly with contributions, but durability-adjusted flow $f(t)$ accelerates as she demonstrates HODLing behavior (higher $A/A_{0}$) and builds runway (higher SSR). The integrated $\mathrm{BXS}(T)$ reflects \emph{both} size and duration of claims; $\mathrm{BXS}_{\mathrm{core}}(T)=\int W\,dt$ provides a size-only benchmark for comparison.
+\newpage
+\subsection*{D. How-To (Start9 + mempool.space)}
+\begin{enumerate}
+\item Compute \(I(t)\) mechanically: query \(\sigma, S, \lambda\) from your node; set \(I(t)=\sigma/S\cdot\lambda\).
+\item Derive wallet series: \(W(t)\), \(A(t)\) (value-weighted mean age), \(i(t)\), \(\mu(t)\); \(CP(t)\) optional.
+\item Choose \(A_0,I_0\) baselines (rolling medians) and floors \(t_{\min},\mu_{\min}\).
+\item Evaluate \(f(t)\) each block interval; integrate numerically for \(S(T)\) and \(\mathrm{BXS}(T)\).
+\item Report both \(\mathrm{BXS}_{\mathrm{core}}\) (size-only) and durability-aware \(\mathrm{BXS}\).
+\end{enumerate}
+
+\end{document}

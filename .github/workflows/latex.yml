@@ -23,7 +23,7 @@ jobs:
         working-directory: src
         run: |
           mkdir -p ../build
-          latexmk -pdf -interaction=nonstopmode bitcoin_seconds_whitepaper_section_v_0_6_6.tex
+          latexmk -pdf -interaction=nonstopmode bitcoin_seconds_whitepaper_section_v_0_6_7.tex
           cp -v *.pdf ../build/
 
       - name: Upload PDF artifact

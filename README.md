@@ -142,6 +142,14 @@ Host on OSF/AsPredicted and/or commit hash + signed tag here.
 
 ---
 
+## Evaluate (empirical plan)
+- Labels: `HOLD` with Δ=90 days and x=5% net outflow threshold.
+- Models (non-nested): CM = `HOLD ~ W + A + I + SSR`, SM = `HOLD ~ f(t)`, ENS = avg(CM,SM).
+- Metrics: out-of-sample AUC, Brier; Diebold–Mariano and AICc for CM vs SM; calibration curves.
+- Robustness: vary (Δ,x), baselines (A0,I0), regimes (post-halvings, bull/bear), SSR caps vs uncapped.
+
+---
+
 ## Roadmap
 
 - [ ] CLI: durability flow \(f,S,\mathrm{BXS}\) from `example_data_bxs.csv`  
