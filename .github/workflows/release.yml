@@ -1,0 +1,40 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Compute checksums
+        run: |
+          mkdir -p dist
+          # Add files you want to ship with the release:
+          # PDF(s), prereg, JSON, CSV templates, etc.
+          cp -v build/Bitcoin_Seconds_v*_*.pdf dist/ 2>/dev/null || true
+          cp -v preregister.md dist/ 2>/dev/null || true
+          cp -v example_data_legacy.csv dist/ 2>/dev/null || true
+          cp -v tools/example_data_bxs.csv dist/ 2>/dev/null || true
+          # checksums
+          (cd dist && sha256sum * > SHA256SUMS.txt || shasum -a 256 * > SHA256SUMS.txt)
+
+      - name: Create GitHub Release
+        id: create_release
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: false
+          generate_release_notes: true
+          files: |
+            dist/**
