@@ -1,5 +1,5 @@
 # Bitcoin-Seconds (BXS)
-![CI](https://github.com/CodeByMAB/bxs-paper/actions/workflows/CI.yml/badge.svg)
+![CI](https://github.com/CodeByMAB/bxs-paper/actions/workflows/ci.yml/badge.svg)
 ![LaTeX](https://github.com/CodeByMAB/bxs-paper/actions/workflows/latex.yml/badge.svg)
 
 **Version:** v0.6.6 (theory) • **Status:** Framework finalized, empirical testing in progress
