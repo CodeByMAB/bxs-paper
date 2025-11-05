@@ -7,11 +7,8 @@ the schema defined in data/schema.sql. Includes mock adapters for testing.
 """
 import sqlite3
 import os
-import csv
-import json
 import time
 from typing import Optional, Dict, List
-from datetime import datetime
 import requests
 from dotenv import load_dotenv
 
@@ -30,12 +27,12 @@ def fetch_block_data_mock(height: int) -> Optional[Dict]:
     # Deterministic mock: block 800000 ≈ 2024-03-01
     base_time = 1709251200  # 2024-03-01 00:00:00
     block_time = base_time + (height - 800000) * 600
-    
+
     # Approximate subsidy and supply for height
     halving_epoch = height // 210000
-    subsidy = 50.0 / (2 ** halving_epoch)
+    subsidy = 50.0 / (2**halving_epoch)
     supply = halving_epoch * 210000 * 50.0 + (height % 210000) * subsidy
-    
+
     return {
         "h": height,
         "t": block_time,
@@ -49,32 +46,37 @@ def fetch_block_data_mock(height: int) -> Optional[Dict]:
 def fetch_block_data(height: int) -> Optional[Dict]:
     """
     Fetch block data from mempool.space API.
-    
+
     Args:
         height: Block height
-    
+
     Returns:
         Dictionary with keys: h, t, sigma, S, lambda, I
         Returns None if fetch fails
     """
     if MOCK_MODE:
         return fetch_block_data_mock(height)
-    
+
     try:
         url = f"{MEMPOOL_API_URL}/api/block-height/{height}"
         response = requests.get(url, timeout=5)
         if response.status_code != 200:
             return fetch_block_data_mock(height)
-        
+
         block_hash = response.text.strip()
         block_url = f"{MEMPOOL_API_URL}/api/block/{block_hash}"
         block_data = requests.get(block_url, timeout=5).json()
-        
+
         # Extract data
         t = block_data.get("timestamp", int(time.time()))
         subsidy = block_data.get("subsidy", 6.25) / 1e8  # Convert to BTC
-        supply = block_data.get("chainstats", {}).get("utxos", {}).get("totalAmount", 19_500_000) / 1e8
-        
+        supply = (
+            block_data.get("chainstats", {})
+            .get("utxos", {})
+            .get("totalAmount", 19_500_000)
+            / 1e8
+        )
+
         # Compute lambda (block arrival rate)
         prev_block_url = f"{MEMPOOL_API_URL}/api/blocks"
         prev_blocks = requests.get(prev_block_url, timeout=5).json()
@@ -83,9 +85,9 @@ def fetch_block_data(height: int) -> Optional[Dict]:
             lambda_rate = 1.0 / max(dt, 1.0)
         else:
             lambda_rate = 1.0 / 600.0
-        
-        I = compute_expansion_rate(subsidy, supply, lambda_rate)
-        
+
+        I = compute_expansion_rate(subsidy, supply, lambda_rate)  # noqa: E741 - expansion rate (standard notation)
+
         return {
             "h": height,
             "t": t,
@@ -112,17 +114,17 @@ def fetch_wallet_rpc_mock() -> Optional[Dict]:
 def fetch_wallet_rpc() -> Optional[Dict]:
     """
     Query local Bitcoin node RPC for wallet state.
-    
+
     Returns:
         Dictionary with keys: W, A, i, mu, CP
         Returns None if RPC call fails
     """
     if MOCK_MODE:
         return fetch_wallet_rpc_mock()
-    
+
     try:
         import requests
-        
+
         payload = {
             "method": "getbalances",
             "params": [],
@@ -135,13 +137,15 @@ def fetch_wallet_rpc() -> Optional[Dict]:
             auth=(BITCOIN_RPC_USER, BITCOIN_RPC_PASSWORD),
             timeout=5,
         )
-        
+
         if response.status_code != 200:
             return fetch_wallet_rpc_mock()
-        
+
         data = response.json()
-        balance = data.get("result", {}).get("mine", {}).get("trusted", 0) * 1e8  # BTC to sats
-        
+        balance = (
+            data.get("result", {}).get("mine", {}).get("trusted", 0) * 1e8
+        )  # BTC to sats
+
         # Mock UTXO age and flows for now
         utxos = []
         payload = {"method": "listunspent", "params": [0], "jsonrpc": "2.0", "id": 2}
@@ -153,10 +157,10 @@ def fetch_wallet_rpc() -> Optional[Dict]:
         )
         if utxo_resp.status_code == 200:
             utxos = utxo_resp.json().get("result", [])
-        
+
         A = compute_coin_age(utxos)
         i, mu = compute_flows(utxos)  # Simplified
-        
+
         return {
             "W": balance,
             "A": A,
@@ -171,12 +175,12 @@ def fetch_wallet_rpc() -> Optional[Dict]:
 def compute_expansion_rate(sigma: float, S: float, lambda_rate: float) -> float:
     """
     Compute protocol expansion rate I(t) = (sigma / S) * lambda.
-    
+
     Args:
         sigma: Block subsidy [BTC/block]
         S: Circulating supply [BTC]
         lambda_rate: Block arrival rate [blocks/s]
-    
+
     Returns:
         I: Expansion rate [s⁻¹]
     """
@@ -188,26 +192,26 @@ def compute_expansion_rate(sigma: float, S: float, lambda_rate: float) -> float:
 def compute_coin_age(utxos: List[Dict]) -> float:
     """
     Compute value-weighted coin age from UTXO set.
-    
+
     Args:
         utxos: List of UTXOs, each with value and age
-    
+
     Returns:
         A: Value-weighted coin age [s]
     """
     if not utxos:
         return 0.0
-    
+
     current_time = int(time.time())
     total_value_age = 0.0
     total_value = 0.0
-    
+
     for utxo in utxos:
         value = utxo.get("amount", 0) * 1e8  # BTC to sats
         age = current_time - utxo.get("time", current_time)
         total_value_age += value * age
         total_value += value
-    
+
     if total_value == 0:
         return 0.0
     return total_value_age / total_value
@@ -216,23 +220,23 @@ def compute_coin_age(utxos: List[Dict]) -> float:
 def compute_flows(tx_history: List[Dict], window_seconds: int = 7 * 86400) -> tuple:
     """
     Compute rolling income (i) and spending (mu) rates.
-    
+
     Args:
         tx_history: Transaction history
         window_seconds: Rolling window size [s] (default: 7 days)
-    
+
     Returns:
         (i, mu): Income rate [sats/s], spending rate [sats/s]
     """
     if not tx_history:
         return (0.0, 0.0)
-    
+
     current_time = int(time.time())
     cutoff = current_time - window_seconds
-    
+
     income = 0.0
     spending = 0.0
-    
+
     for tx in tx_history:
         if tx.get("time", 0) < cutoff:
             continue
@@ -241,11 +245,13 @@ def compute_flows(tx_history: List[Dict], window_seconds: int = 7 * 86400) -> tu
             income += amount
         else:
             spending += abs(amount)
-    
-    window_dt = min(window_seconds, current_time - cutoff) if cutoff > 0 else window_seconds
+
+    window_dt = (
+        min(window_seconds, current_time - cutoff) if cutoff > 0 else window_seconds
+    )
     i = income / window_dt if window_dt > 0 else 0.0
     mu = spending / window_dt if window_dt > 0 else 0.0
-    
+
     return (i, mu)
 
 
@@ -266,7 +272,9 @@ def update_blocks_table(conn: sqlite3.Connection, block_data: Dict):
     conn.commit()
 
 
-def update_wallet_table(conn: sqlite3.Connection, wallet_data: Dict, ssr: float, f: float):
+def update_wallet_table(
+    conn: sqlite3.Connection, wallet_data: Dict, ssr: float, f: float
+):
     """Insert/update wallet state in wallet table."""
     conn.execute(
         """INSERT OR REPLACE INTO wallet (t, W, A, i, mu, CP, SSR, f)
@@ -285,7 +293,9 @@ def update_wallet_table(conn: sqlite3.Connection, wallet_data: Dict, ssr: float,
     conn.commit()
 
 
-def update_metrics_table(conn: sqlite3.Connection, timestamp: int, S_cum: float, BXS_cum: float):
+def update_metrics_table(
+    conn: sqlite3.Connection, timestamp: int, S_cum: float, BXS_cum: float
+):
     """Insert/update cumulative metrics in metrics table."""
     conn.execute(
         """INSERT OR REPLACE INTO metrics (t, S_cum, BXS_cum)
@@ -298,7 +308,7 @@ def update_metrics_table(conn: sqlite3.Connection, timestamp: int, S_cum: float,
 def pipeline_step(conn: sqlite3.Connection, height: int):
     """
     Execute one pipeline step: fetch data, compute, write to DB.
-    
+
     Args:
         conn: SQLite connection
         height: Block height to process
@@ -306,25 +316,26 @@ def pipeline_step(conn: sqlite3.Connection, height: int):
     block_data = fetch_block_data(height)
     if not block_data:
         return
-    
+
     update_blocks_table(conn, block_data)
-    
+
     wallet_data = fetch_wallet_rpc()
     if not wallet_data:
         return
-    
+
     # Compute SSR and f (would need baselines from DB)
     # For now, use defaults
     t = int(time.time())
     r = 2 * 365 * 24 * 3600  # 2 years
     t_min = 1_000
     mu_min = 1e-6
-    
+
     import sys
     import os
+
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     from code.bxs_calculator import compute_ssr, compute_f
-    
+
     ssr = compute_ssr(
         wallet_data["W"],
         wallet_data["i"],
@@ -335,11 +346,11 @@ def pipeline_step(conn: sqlite3.Connection, height: int):
         t_min,
         mu_min,
     )
-    
+
     # Get baselines (simplified - would query rolling median)
     A0 = 1.55e7  # 180 days default
     I0 = 2.61e-10
-    
+
     f = compute_f(
         wallet_data["i"],
         wallet_data["A"],
@@ -348,5 +359,5 @@ def pipeline_step(conn: sqlite3.Connection, height: int):
         I0,
         ssr,
     )
-    
+
     update_wallet_table(conn, wallet_data, ssr, f)

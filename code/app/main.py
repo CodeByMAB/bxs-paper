@@ -5,8 +5,7 @@ FastAPI service for BXS metrics and alerts.
 import os
 import sqlite3
 import json
-from typing import Optional, List, Dict
-from datetime import datetime
+from typing import List, Dict
 from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel
 from dotenv import load_dotenv
@@ -23,7 +22,7 @@ class MetricsLatest(BaseModel):
     t: int
     W: float
     A: float
-    I: float
+    I: float  # noqa: E741 - protocol expansion rate (standard notation)
     i: float
     mu: float
     SSR: float
@@ -59,20 +58,20 @@ def latest():
         wallet = conn.execute(
             """SELECT * FROM wallet ORDER BY t DESC LIMIT 1"""
         ).fetchone()
-        
+
         if not wallet:
             raise HTTPException(status_code=404, detail="No wallet data found")
-        
+
         # Get latest block for I
         block = conn.execute(
             """SELECT I FROM blocks ORDER BY h DESC LIMIT 1"""
         ).fetchone()
-        
+
         # Get latest metrics
         metrics = conn.execute(
             """SELECT * FROM metrics ORDER BY t DESC LIMIT 1"""
         ).fetchone()
-        
+
         return MetricsLatest(
             t=wallet["t"],
             W=wallet["W"],
@@ -105,7 +104,7 @@ def range_metrics(
                ORDER BY w.t""",
             (start, end),
         ).fetchall()
-        
+
         data = [dict(row) for row in rows]
         return {"data": data, "count": len(data)}
     finally:
@@ -121,7 +120,7 @@ def recent_alerts(limit: int = Query(10, ge=1, le=100)):
             """SELECT * FROM alerts ORDER BY created_at DESC LIMIT ?""",
             (limit,),
         ).fetchall()
-        
+
         alerts = []
         for row in rows:
             alerts.append(
@@ -142,34 +141,38 @@ def recompute():
     """Recompute metrics from wallet data (admin only)."""
     if not ADMIN_ENABLED:
         raise HTTPException(status_code=403, detail="Admin endpoint disabled")
-    
+
     conn = get_db()
     try:
         # Get all wallet entries
-        wallets = conn.execute(
-            """SELECT * FROM wallet ORDER BY t"""
-        ).fetchall()
-        
+        wallets = conn.execute("""SELECT * FROM wallet ORDER BY t""").fetchall()
+
         if not wallets:
             return {"status": "no_data"}
-        
+
         # Import compute functions
         import sys
         import os
-        sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
+        sys.path.insert(
+            0,
+            os.path.dirname(
+                os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            ),
+        )
         from code.bxs_calculator import integrate_s, integrate_bxs
-        
+
         timestamps = [w["t"] for w in wallets]
         f_series = [w["f"] for w in wallets]
-        
+
         # Compute S and BXS
         S_series = integrate_s(f_series, timestamps)
-        
+
         # Get S values for BXS integration
         metrics_existing = conn.execute(
             """SELECT t, S_cum FROM metrics ORDER BY t"""
         ).fetchall()
-        
+
         # If metrics exist, use them; otherwise use S_series
         if metrics_existing:
             S_for_bxs = [m["S_cum"] for m in metrics_existing]
@@ -177,13 +180,13 @@ def recompute():
         else:
             S_for_bxs = S_series
             timestamps_bxs = timestamps
-        
+
         BXS_series = integrate_bxs(S_for_bxs, timestamps_bxs)
-        
+
         # Update metrics table
         for i, wallet in enumerate(wallets):
             update_metrics_table(conn, wallet["t"], S_series[i], BXS_series[i])
-        
+
         return {
             "status": "success",
             "processed": len(wallets),
@@ -193,7 +196,9 @@ def recompute():
         conn.close()
 
 
-def update_metrics_table(conn: sqlite3.Connection, timestamp: int, S_cum: float, BXS_cum: float):
+def update_metrics_table(
+    conn: sqlite3.Connection, timestamp: int, S_cum: float, BXS_cum: float
+):
     """Helper to update metrics."""
     conn.execute(
         """INSERT OR REPLACE INTO metrics (t, S_cum, BXS_cum)
@@ -222,4 +227,3 @@ def root():
 def healthz():
     """Health check endpoint for CI."""
     return {"status": "ok"}
-

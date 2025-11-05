@@ -8,7 +8,7 @@ import csv
 import os
 import sys
 from datetime import datetime
-from typing import Dict, List
+from typing import Dict
 
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -38,7 +38,7 @@ def parse_csv_row(row: Dict) -> Dict:
             t = int(float(ts_str))
     except Exception:
         t = int(datetime.now().timestamp())
-    
+
     return {
         "t": t,
         "W": float(row.get("W", 0)),
@@ -55,37 +55,39 @@ def parse_csv_row(row: Dict) -> Dict:
     }
 
 
-def backfill_from_csv(conn: sqlite3.Connection, csv_path: str, start_height: int = 800000):
+def backfill_from_csv(
+    conn: sqlite3.Connection, csv_path: str, start_height: int = 800000
+):
     """Backfill database from CSV file."""
     print(f"Loading CSV from {csv_path}...")
-    
+
     rows = []
     with open(csv_path, "r") as f:
         reader = csv.DictReader(f)
         for row in reader:
             rows.append(parse_csv_row(row))
-    
+
     print(f"Loaded {len(rows)} rows")
-    
+
     # Insert blocks (simplified - use deterministic heights)
     for i, row in enumerate(rows):
         height = start_height + i
         block_time = row["t"]
-        
+
         # Compute I from sigma, S, lambda
         # For mock, use deterministic values
         halving_epoch = height // 210000
-        sigma = 50.0 / (2 ** halving_epoch)
+        sigma = 50.0 / (2**halving_epoch)
         supply = halving_epoch * 210000 * 50.0 + (height % 210000) * sigma
         lambda_rate = 1.0 / 600.0
-        I = (sigma / supply) * lambda_rate
-        
+        I = (sigma / supply) * lambda_rate  # noqa: E741 - expansion rate (standard notation)
+
         conn.execute(
             """INSERT OR REPLACE INTO blocks (h, t, sigma, S, lambda, I)
                VALUES (?, ?, ?, ?, ?, ?)""",
             (height, block_time, sigma, supply, lambda_rate, I),
         )
-        
+
         # Compute SSR and f
         t_elapsed = row["t"] - rows[0]["t"] if rows else 1.0
         ssr = compute_ssr(
@@ -98,7 +100,7 @@ def backfill_from_csv(conn: sqlite3.Connection, csv_path: str, start_height: int
             row["tmin"],
             row["mumin"],
         )
-        
+
         f = compute_f(
             row["i"],
             row["A"],
@@ -107,7 +109,7 @@ def backfill_from_csv(conn: sqlite3.Connection, csv_path: str, start_height: int
             row["I0"],
             ssr,
         )
-        
+
         # Insert wallet
         conn.execute(
             """INSERT OR REPLACE INTO wallet (t, W, A, i, mu, CP, SSR, f)
@@ -123,7 +125,7 @@ def backfill_from_csv(conn: sqlite3.Connection, csv_path: str, start_height: int
                 f,
             ),
         )
-    
+
     conn.commit()
     print(f"Inserted {len(rows)} blocks and wallet entries")
     return rows
@@ -132,25 +134,23 @@ def backfill_from_csv(conn: sqlite3.Connection, csv_path: str, start_height: int
 def compute_and_persist(conn: sqlite3.Connection):
     """Compute S and BXS from wallet data and persist to metrics."""
     print("Computing metrics...")
-    
+
     # Get all wallet entries
-    wallets = conn.execute(
-        """SELECT * FROM wallet ORDER BY t"""
-    ).fetchall()
-    
+    wallets = conn.execute("""SELECT * FROM wallet ORDER BY t""").fetchall()
+
     if not wallets:
         print("No wallet data found")
         return
-    
+
     timestamps = [w["t"] for w in wallets]
     f_series = [w["f"] for w in wallets]
-    
+
     # Compute S
     S_series = integrate_s(f_series, timestamps)
-    
+
     # Compute BXS from S
     BXS_series = integrate_bxs(S_series, timestamps)
-    
+
     # Persist to metrics
     for i, wallet in enumerate(wallets):
         conn.execute(
@@ -158,10 +158,10 @@ def compute_and_persist(conn: sqlite3.Connection):
                VALUES (?, ?, ?)""",
             (wallet["t"], S_series[i], BXS_series[i]),
         )
-    
+
     conn.commit()
     print(f"Computed and persisted {len(wallets)} metric entries")
-    
+
     # Process alerts
     if wallets:
         latest_t = timestamps[-1]
@@ -198,28 +198,28 @@ def main():
         action="store_true",
         help="Compute metrics from wallet data",
     )
-    
+
     args = parser.parse_args()
-    
+
     # Ensure data directory exists
     os.makedirs(os.path.dirname(args.db) or ".", exist_ok=True)
-    
+
     # Initialize DB if needed
     if args.init or not os.path.exists(args.db):
         print(f"Initializing database at {args.db}...")
         conn = init_db(args.db, args.schema)
     else:
         conn = sqlite3.connect(args.db)
-    
+
     try:
         # Backfill from CSV
         if args.csv:
             backfill_from_csv(conn, args.csv)
-        
+
         # Compute metrics
         if args.compute or args.csv:
             compute_and_persist(conn)
-        
+
         print("Done!")
     finally:
         conn.close()
@@ -227,4 +227,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

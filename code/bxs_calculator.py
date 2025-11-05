@@ -20,7 +20,7 @@ def compute_ssr(
 ) -> float:
     """
     Compute Surplus-to-Spending Ratio (SSR).
-    
+
     Args:
         W: Current holdings [sats]
         r: Retirement horizon [s]
@@ -30,7 +30,7 @@ def compute_ssr(
         t_min: Floor for elapsed time [s]
         mu: Spending outflow rate [sats/s]
         mu_min: Floor for spending rate [sats/s]
-    
+
     Returns:
         SSR: Surplus-to-spending ratio [dimensionless, can be <0]
     """
@@ -44,13 +44,13 @@ def compute_f(
     i: float,
     A: float,
     A0: float,
-    I: float,
+    I: float,  # noqa: E741 - protocol expansion rate (standard notation)
     I0: float,
     SSR: float,
 ) -> float:
     """
     Compute productive flow of durable claims f(t).
-    
+
     Args:
         i: Income inflow rate [sats/s]
         A: Value-weighted coin age [s]
@@ -58,7 +58,7 @@ def compute_f(
         I: Protocol expansion rate [s⁻¹]
         I0: Expansion-rate baseline [s⁻¹]
         SSR: Surplus-to-spending ratio [dimensionless]
-    
+
     Returns:
         f: Productive flow [sats/s]
     """
@@ -73,11 +73,11 @@ def integrate_cumulative(
 ) -> List[float]:
     """
     Integrate cumulative series using trapezoidal rule.
-    
+
     Args:
         series: Array of values
         dt: Time step [s]
-    
+
     Returns:
         Cumulative integral (same length as input)
     """
@@ -99,13 +99,13 @@ def integrate_s(
 ) -> List[float]:
     """
     Integrate cumulative durable claims S(T) = ∫₀ᵀ f(t) dt.
-    
+
     Uses trapezoidal rule for numerical integration.
-    
+
     Args:
         f_timeseries: Array of f(t) values [sats/s]
         timestamps: Array of timestamps [unix seconds]
-    
+
     Returns:
         S: Cumulative claims [sats] (same length as input)
     """
@@ -124,13 +124,13 @@ def integrate_bxs(
 ) -> List[float]:
     """
     Integrate Bitcoin-Seconds BXS(T) = ∫₀ᵀ S(t) dt.
-    
+
     Uses trapezoidal rule for numerical integration.
-    
+
     Args:
         S_timeseries: Array of S(t) values [sats]
         timestamps: Array of timestamps [unix seconds]
-    
+
     Returns:
         BXS: Bitcoin-Seconds [sats·s] (same length as input)
     """
@@ -148,15 +148,14 @@ def compute_baseline_bxscore(
 ) -> List[float]:
     """
     Compute baseline BXScore (size-only persistence).
-    
+
     BXScore(T) = ∫₀ᵀ W(t) dt
-    
+
     Args:
         W_timeseries: Array of wealth/balance values [sats]
         timestamps: Array of timestamps [unix seconds]
-    
+
     Returns:
         BXScore: Baseline time-weighted wealth [sats·s] (same length as input)
     """
     return integrate_bxs(W_timeseries, timestamps)
-

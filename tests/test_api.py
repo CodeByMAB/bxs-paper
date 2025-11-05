@@ -5,12 +5,11 @@ import sqlite3
 import os
 import sys
 import tempfile
-import json
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from fastapi.testclient import TestClient
-from code.app.main import app, get_db
+from code.app.main import app
 
 
 @pytest.fixture
@@ -18,13 +17,13 @@ def test_db():
     """Create temporary test database."""
     fd, path = tempfile.mkstemp(suffix=".sqlite")
     os.close(fd)
-    
+
     conn = sqlite3.connect(path)
     # Create schema
     schema_path = os.path.join(os.path.dirname(__file__), "..", "data", "schema.sql")
     with open(schema_path, "r") as f:
         conn.executescript(f.read())
-    
+
     # Insert test data
     conn.execute(
         """INSERT INTO blocks (h, t, sigma, S, lambda, I)
@@ -40,17 +39,17 @@ def test_db():
     )
     conn.commit()
     conn.close()
-    
+
     yield path
-    
+
     os.unlink(path)
 
 
 @pytest.fixture
 def client(test_db):
     """Create test client with test database."""
-    import os
     import code.app.main as main_module
+
     # Patch the DB_PATH in the module
     original_db_path = main_module.DB_PATH
     main_module.DB_PATH = test_db
@@ -112,4 +111,3 @@ def test_healthz(client):
     assert response.status_code == 200
     data = response.json()
     assert data == {"status": "ok"}
-
