@@ -46,19 +46,36 @@ preregister.md                   # Analysis plan (pre-registered)
 ### Run Locally
 
 ```bash
-# Setup virtual environment
+# 1. Setup
 python3 -m venv venv && . venv/bin/activate
 pip install -r requirements.txt
+cp .env.example .env
+export MOCK_MODE=true  # For testing without APIs
 
-# Start data pipeline (fetch from mempool.space + wallet RPC)
-python3 code/data_pipeline.py --db data/bxs.sqlite
+# 2. Initialize database and backfill sample data
+python3 code/cli.py --init --csv data/sample_data/example_data_bxs.csv --db data/bxs.sqlite
 
-# Compute metrics (SSR, f, S, BXS)
-python3 code/bxs_calculator.py --db data/bxs.sqlite
-
-# Serve API dashboard
-python3 code/dashboard/app.py
+# 3. Start API server
+uvicorn code.app.main:app --reload --host 0.0.0.0 --port 8000
 ```
+
+### Test API Endpoints
+
+```bash
+# Health check
+curl http://127.0.0.1:8000/healthz
+
+# Get latest metrics
+curl http://127.0.0.1:8000/metrics/latest
+
+# Get metrics in time range
+curl "http://127.0.0.1:8000/metrics/range?start=1709251200&end=1709251300"
+
+# Get recent alerts
+curl http://127.0.0.1:8000/alerts/recent
+```
+
+See [docs/START9.md](docs/START9.md) for detailed Start9 configuration.
 
 ---
 
