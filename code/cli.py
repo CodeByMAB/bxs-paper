@@ -80,7 +80,9 @@ def backfill_from_csv(
         sigma = 50.0 / (2**halving_epoch)
         supply = halving_epoch * 210000 * 50.0 + (height % 210000) * sigma
         lambda_rate = 1.0 / 600.0
-        I = (sigma / supply) * lambda_rate  # noqa: E741 - expansion rate (standard notation)
+        I = (
+            sigma / supply
+        ) * lambda_rate  # noqa: E741 - expansion rate (standard notation)
 
         conn.execute(
             """INSERT OR REPLACE INTO blocks (h, t, sigma, S, lambda, I)
