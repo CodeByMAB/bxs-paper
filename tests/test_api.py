@@ -52,14 +52,26 @@ def test_db():
 def client(test_db):
     """Create test client with test database."""
     import code.app.main as main_module
+    import os
 
-    # Patch the DB_PATH in the module
+    # Patch the DB_PATH in the module and environment
     original_db_path = main_module.DB_PATH
+    original_env_db = os.environ.get("DB_PATH")
+    
+    # Set environment variable first, then patch module
+    os.environ["DB_PATH"] = test_db
     main_module.DB_PATH = test_db
+    
+    from code.app.main import app
     client = TestClient(app)
     yield client
+    
     # Restore original
     main_module.DB_PATH = original_db_path
+    if original_env_db:
+        os.environ["DB_PATH"] = original_env_db
+    else:
+        os.environ.pop("DB_PATH", None)
 
 
 def test_root(client):
