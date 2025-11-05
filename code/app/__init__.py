@@ -1,2 +1,1 @@
 """BXS FastAPI app."""
-

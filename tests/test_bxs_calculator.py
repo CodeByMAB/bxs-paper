@@ -1,11 +1,18 @@
 #!/usr/bin/env python3
 """Tests for bxs_calculator module."""
-import sys
 import os
+import sys
 
+# Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from code.bxs_calculator import compute_ssr, compute_f, integrate_s, integrate_bxs
+import pytest  # noqa: E402
+from code.bxs_calculator import (  # noqa: E402
+    compute_ssr,
+    compute_f,
+    integrate_s,
+    integrate_bxs,
+)
 
 
 def test_compute_ssr():

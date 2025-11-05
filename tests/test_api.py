@@ -52,7 +52,7 @@ def test_db():
 def client(test_db):
     """Create test client with test database."""
     # Import here after path is set
-    from code.app import main as main_module
+    from code.app import main as main_module  # noqa: E402
 
     # Patch the DB_PATH in the module and environment
     original_db_path = main_module.DB_PATH
@@ -62,7 +62,7 @@ def client(test_db):
     os.environ["DB_PATH"] = test_db
     main_module.DB_PATH = test_db
 
-    from code.app.main import app
+    from code.app.main import app  # noqa: E402
 
     client = TestClient(app)
     yield client
