@@ -7,7 +7,12 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: "3.11" }
-      - run: python -m venv venv && . venv/bin/activate && pip install -r requirements.txt
-      - run: echo "MOCK_MODE=true" >> $GITHUB_ENV
-      - run: . venv/bin/activate && pytest -q
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Run tests
+        env:
+          MOCK_MODE: "true"
+        run: pytest tests/ -q
 

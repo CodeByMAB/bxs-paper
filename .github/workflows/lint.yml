@@ -8,5 +8,8 @@ jobs:
       - uses: actions/setup-python@v5
         with: { python-version: "3.11" }
       - run: pip install ruff black
-      - run: ruff . && black --check .
+      - name: Lint with ruff
+        run: ruff check .
+      - name: Check formatting with black
+        run: black --check .
 
