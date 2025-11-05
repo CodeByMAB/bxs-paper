@@ -1,0 +1,39 @@
+name: Build Paper
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+jobs:
+  build-pdf:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install TeX Live
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            texlive-latex-recommended \
+            texlive-latex-extra \
+            texlive-fonts-recommended \
+            texlive-science \
+            latexmk
+
+      - name: Build PDF
+        working-directory: src
+        run: |
+          mkdir -p ../build
+          latexmk -pdf -interaction=nonstopmode bitcoin_seconds_whitepaper_section_v_0_6_7.tex
+          cp -v *.pdf ../build/
+
+      - name: Upload PDF artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: paper-pdf
+          path: build/*.pdf
+          retention-days: 90
+

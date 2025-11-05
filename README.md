@@ -1,6 +1,7 @@
 # Bitcoin-Seconds (BXS)
 ![CI](https://github.com/CodeByMAB/bxs-paper/actions/workflows/ci.yml/badge.svg)
 ![LaTeX](https://github.com/CodeByMAB/bxs-paper/actions/workflows/latex.yml/badge.svg)
+![License: CC BY 4.0](https://img.shields.io/badge/License-CC%20BY%204.0-lightgrey.svg)
 
 **Version:** v0.6.6 (theory) • **Status:** Framework finalized, empirical testing in progress
 
@@ -24,12 +25,39 @@ Bitcoin-Seconds (BXS) measures the **durable accumulation of time-shifted energy
 ```
 /src/                            # LaTeX source (paper v0.6.6)
 /build/                          # Compiled PDFs
+/code/                           # Python implementation
+  bxs_calculator.py              # Core calculations (SSR, f, S, BXS)
+  data_pipeline.py               # Data ingestion (mempool.space + RPC)
+  backtest.py                    # Empirical testing (CM/SM/ENS)
+/data/                           # Database schema
+  schema.sql                     # SQLite schema
 /tools/                          # (optional) scripts, notebooks
 main.py                          # CLI (legacy BS index — see below)
-example_data_legacy.csv          # CSV for legacy CLI
+example_data_legacy.csv           # CSV for legacy CLI
 example_data_bxs.csv             # CSV schema for durability flow (future CLI)
 README.md                        # This file
 preregister.md                   # Analysis plan (pre-registered)
+```
+
+---
+
+## Quick Start
+
+### Run Locally
+
+```bash
+# Setup virtual environment
+python3 -m venv venv && . venv/bin/activate
+pip install -r requirements.txt
+
+# Start data pipeline (fetch from mempool.space + wallet RPC)
+python3 code/data_pipeline.py --db data/bxs.sqlite
+
+# Compute metrics (SSR, f, S, BXS)
+python3 code/bxs_calculator.py --db data/bxs.sqlite
+
+# Serve API dashboard
+python3 code/dashboard/app.py
 ```
 
 ---
