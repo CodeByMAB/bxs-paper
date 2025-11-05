@@ -1,0 +1,2 @@
+"""BXS FastAPI app."""
+

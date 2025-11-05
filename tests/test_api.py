@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """Tests for FastAPI endpoints."""
-import pytest
-import sqlite3
 import os
 import sys
 import tempfile
+import sqlite3
 
+# Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+import pytest
 from fastapi.testclient import TestClient
-from code.app.main import app
 
 
 @pytest.fixture
@@ -51,21 +51,22 @@ def test_db():
 @pytest.fixture
 def client(test_db):
     """Create test client with test database."""
-    import code.app.main as main_module
-    import os
+    # Import here after path is set
+    from code.app import main as main_module
 
     # Patch the DB_PATH in the module and environment
     original_db_path = main_module.DB_PATH
     original_env_db = os.environ.get("DB_PATH")
-    
+
     # Set environment variable first, then patch module
     os.environ["DB_PATH"] = test_db
     main_module.DB_PATH = test_db
-    
+
     from code.app.main import app
+
     client = TestClient(app)
     yield client
-    
+
     # Restore original
     main_module.DB_PATH = original_db_path
     if original_env_db:

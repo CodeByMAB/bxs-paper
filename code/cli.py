@@ -3,9 +3,9 @@
 CLI for backfilling from CSV and running compute+persist.
 """
 import argparse
-import sqlite3
 import csv
 import os
+import sqlite3
 import sys
 from datetime import datetime
 from typing import Dict
@@ -13,8 +13,13 @@ from typing import Dict
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from code.bxs_calculator import compute_ssr, compute_f, integrate_s, integrate_bxs
-from code.alerts import process_alerts
+from code.alerts import process_alerts  # noqa: E402
+from code.bxs_calculator import (  # noqa: E402
+    compute_ssr,
+    compute_f,
+    integrate_s,
+    integrate_bxs,
+)
 
 
 def init_db(db_path: str, schema_path: str):
