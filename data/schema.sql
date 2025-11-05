@@ -26,9 +26,11 @@ CREATE TABLE metrics (
 );
 
 CREATE TABLE alerts (
-  t INTEGER PRIMARY KEY,
-  alert_type TEXT NOT NULL,   -- 'f_decline', 'ssr_negative', etc.
-  severity REAL,              -- magnitude (e.g., %-change in f)
-  context TEXT                -- JSON: {W,A,I,SSR,f}
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  t INTEGER NOT NULL,
+  created_at INTEGER NOT NULL,  -- unix timestamp
+  alert_type TEXT NOT NULL,     -- 'f_decline', 'ssr_negative', etc.
+  severity REAL,                -- magnitude (e.g., %-change in f)
+  context TEXT                  -- JSON: {W,A,I,SSR,f}
 );
 
