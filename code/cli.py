@@ -24,6 +24,17 @@ from code.bxs_calculator import (  # noqa: E402
 
 def init_db(db_path: str, schema_path: str):
     """Initialize database from schema."""
+    # Verify schema file exists
+    if not os.path.exists(schema_path):
+        raise FileNotFoundError(
+            f"Schema file not found: {schema_path}\n"
+            f"Current working directory: {os.getcwd()}\n"
+            f"Checked paths:\n"
+            f"  - {schema_path}\n"
+            f"  - {os.path.abspath(schema_path)}\n"
+            f"  - /app/data/schema.sql (if in Docker)"
+        )
+    
     conn = sqlite3.connect(db_path)
     with open(schema_path, "r") as f:
         conn.executescript(f.read())
@@ -190,7 +201,6 @@ def main():
     )
     parser.add_argument(
         "--schema",
-        default="data/schema.sql",
         help="Schema file path",
     )
     parser.add_argument(
@@ -205,6 +215,25 @@ def main():
     )
 
     args = parser.parse_args()
+    
+    # Set default schema path if not provided
+    if not args.schema:
+        # Check multiple possible locations (in order of preference)
+        possible_paths = [
+            "/app/data/schema.sql",  # Docker runtime (copied from /app/schema.sql by entrypoint)
+            "/app/schema.sql",       # Docker image (before volume mount)
+            "data/schema.sql",       # Relative path from project root
+            os.path.join(os.path.dirname(__file__), "..", "..", "data", "schema.sql"),  # Relative from code/cli.py
+        ]
+        
+        for path in possible_paths:
+            abs_path = os.path.abspath(path)
+            if os.path.exists(path) or os.path.exists(abs_path):
+                args.schema = path if os.path.exists(path) else abs_path
+                break
+        else:
+            # If none found, default to relative path (will fail with better error)
+            args.schema = "data/schema.sql"
 
     # Ensure data directory exists
     os.makedirs(os.path.dirname(args.db) or ".", exist_ok=True)
@@ -215,6 +244,8 @@ def main():
         conn = init_db(args.db, args.schema)
     else:
         conn = sqlite3.connect(args.db)
+    
+    conn.row_factory = sqlite3.Row  # Enable row access by column name
 
     try:
         # Backfill from CSV

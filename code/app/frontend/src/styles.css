@@ -1,0 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Optional small tweak if the theme lacks opacity utilities */
+.opacity-85 { opacity: 0.85; }
+

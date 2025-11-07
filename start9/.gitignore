@@ -1,0 +1,9 @@
+# Docker images bundle (too large for git)
+docker_images.tgz
+
+# Packaged service files
+*.s9pk
+
+*.tar
+*.tgz
+*.s9pk

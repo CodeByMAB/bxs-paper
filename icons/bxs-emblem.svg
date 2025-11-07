@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <style>
+      .navy{fill:#0B1E36}
+      .orange{fill:#F7931A}
+      .off{fill:#FAF7F2}
+      .stroke-off{fill:none;stroke:#FAF7F2;stroke-width:14;stroke-linecap:round;stroke-linejoin:round}
+      .stroke-gold{fill:none;stroke:#FFC24A;stroke-width:10;opacity:.9}
+    </style>
+  </defs>
+  <rect width="1024" height="1024" fill="none"/>
+  <!-- Outer navy disc -->
+  <circle cx="512" cy="512" r="470" class="navy"/>
+  <!-- Concentric off-white rings -->
+  <circle cx="512" cy="512" r="410" class="stroke-off"/>
+  <circle cx="512" cy="512" r="330" class="stroke-off" style="stroke-width:10"/>
+  <circle cx="512" cy="512" r="250" class="stroke-off" style="stroke-width:8"/>
+  <!-- Gold orbits -->
+  <circle cx="512" cy="512" r="380" class="stroke-gold"/>
+  <circle cx="512" cy="512" r="300" class="stroke-gold" style="stroke-dasharray:18 14"/>
+  <!-- Central coin -->
+  <circle cx="512" cy="512" r="140" class="orange"/>
+  <!-- Bitcoin B (simple, grid-safe) -->
+  <g transform="translate(452 418)" fill="#fff">
+    <rect x="38" y="0" width="20" height="188" rx="10"/>
+    <path d="M10 44h128v20H10zm0 86h128v20H10z"/>
+  </g>
+  <!-- Clock ticks (cardinal) -->
+  <line x1="512" y1="92" x2="512" y2="132" class="stroke-off"/>
+  <line x1="512" y1="892" x2="512" y2="852" class="stroke-off"/>
+  <line x1="92" y1="512" x2="132" y2="512" class="stroke-off"/>
+  <line x1="892" y1="512" x2="852" y2="512" class="stroke-off"/>
+  <!-- Minor ticks -->
+  <g class="stroke-off" style="stroke-width:6">
+    <line x1="248" y1="248" x2="270" y2="270"/>
+    <line x1="754" y1="248" x2="732" y2="270"/>
+    <line x1="248" y1="754" x2="270" y2="732"/>
+    <line x1="754" y1="754" x2="732" y2="732"/>
+  </g>
+  <!-- Stars/dots -->
+  <g class="off">
+    <circle cx="750" cy="600" r="7"/><circle cx="680" cy="720" r="5"/>
+    <circle cx="340" cy="730" r="6"/><circle cx="285" cy="600" r="5"/>
+    <circle cx="330" cy="330" r="6"/><circle cx="700" cy="340" r="6"/>
+  </g>
+</svg>

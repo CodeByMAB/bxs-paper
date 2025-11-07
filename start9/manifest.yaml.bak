@@ -1,0 +1,137 @@
+id: bitcoin-seconds
+version: 0.1.0
+title: Bitcoin Seconds (BXS)
+description:
+  short: Measure durable accumulation of time-shifted energy claims in Bitcoin
+  long: |
+    Bitcoin Seconds (BXS) measures the **durable accumulation of time-shifted energy claims** 
+    in a Bitcoin-denominated economy. It computes a durability-adjusted Bitcoin flow f(t), 
+    cumulative stock S(T), and persistence BXS(T) from your own node.
+    
+    Features:
+    - Real-time computation of BXS metrics from your Bitcoin node
+    - REST API for integration with dashboards and scripts
+    - Mock mode for testing without node connection
+    - SQLite database for historical data
+    - Configurable alert thresholds
+    
+    The service exposes local HTTP endpoints accessible via LAN or Tor.
+
+release-notes: |
+  v0.1.0
+  - Initial release
+  - Core BXS calculations (SSR, f, S, BXS)
+  - FastAPI REST endpoints
+  - Mock mode for testing
+  - SQLite persistence
+  - Configurable alerts
+
+license: CC-BY-4.0
+wrapper-repo: https://github.com/CodeByMAB/bxs-paper
+upstream-repo: https://github.com/CodeByMAB/bxs-paper
+support-site: https://github.com/CodeByMAB/bxs-paper/issues
+marketing-site: https://github.com/CodeByMAB/bxs-paper
+donation-url: null
+
+assets:
+  license: LICENSE
+  icon: icon.png
+  instructions: instructions.md
+  docker-images: image.tar
+
+main:
+  type: docker
+  image: main
+  entrypoint: docker-entrypoint.sh
+  args: []
+  mounts:
+    main: /app/data
+  
+health-checks:
+  main:
+    name: Web Interface
+    success-message: BXS API is accessible and healthy
+    type: docker
+    image: main
+    entrypoint: check-web.sh
+    args: []
+    io-format: json
+    inject: true
+  api:
+    name: Metrics API
+    success-message: Metrics endpoint is responding
+    type: docker
+    image: main
+    entrypoint: check-metrics.sh
+    args: []
+    io-format: json
+    inject: true
+
+config:
+  spec: config_spec.yaml
+  get:
+    type: docker
+    image: main
+    entrypoint: get-config.sh
+    args: []
+    io-format: json
+  set:
+    type: docker
+    image: main
+    entrypoint: set-config.sh
+    args: []
+    io-format: json
+
+properties: ~
+
+volumes:
+  main:
+    type: data
+
+interfaces:
+  main:
+    name: BXS Dashboard
+    description: Bitcoin Seconds Web Dashboard and REST API
+    tor-config:
+      port-mapping:
+        80: "8080"
+    lan-config:
+      443:
+        ssl: true
+        internal: 8080
+    ui: true
+    protocols:
+      - tcp
+      - http
+
+dependencies:
+  bitcoind:
+    version: "^0.21.0"
+    requirement:
+      type: opt-in
+      how: Connect Bitcoin Core/Knots in the Dependencies section to use real blockchain data
+    description: Bitcoin Core or Bitcoin Knots node for real blockchain data
+  mempool:
+    version: "^2.0.0"
+    requirement:
+      type: opt-in
+      how: Connect Mempool.space in the Dependencies section to fetch block data
+    description: Mempool.space service for block data
+
+backup:
+  create:
+    type: docker
+    image: main
+    system: false
+    entrypoint: /bin/true
+    args: []
+    mounts:
+      main: /app/data
+  restore:
+    type: docker
+    image: main
+    system: false
+    entrypoint: /bin/true
+    args: []
+    mounts:
+      main: /app/data

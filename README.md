@@ -31,6 +31,10 @@ Bitcoin-Seconds (BXS) measures the **durable accumulation of time-shifted energy
   backtest.py                    # Empirical testing (CM/SM/ENS)
 /data/                           # Database schema
   schema.sql                     # SQLite schema
+/icons/                          # Brand assets (logos, favicons, social)
+  web/                           # Web favicons & manifest
+  start9/                        # Start9 package icon
+  social/                        # Social media images
 /tools/                          # (optional) scripts, notebooks
 main.py                          # CLI (legacy BS index — see below)
 example_data_legacy.csv           # CSV for legacy CLI

@@ -1,0 +1,19 @@
+{
+  "name": "Bitcoin Seconds",
+  "short_name": "BXS",
+  "icons": [
+    {
+      "src": "/icons/bxs-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/bxs-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "theme_color": "#0B1E36",
+  "background_color": "#FAF7F2",
+  "display": "standalone"
+}

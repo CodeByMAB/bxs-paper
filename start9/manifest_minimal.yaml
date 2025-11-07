@@ -1,0 +1,11 @@
+id: bxs
+version: 0.1.0
+title: Bitcoin-Seconds (BXS)
+license: MIT
+
+assets:
+  - path: docker_images.tgz
+    type: docker_images
+  - path: docker-compose.yml
+    type: docker_compose
+

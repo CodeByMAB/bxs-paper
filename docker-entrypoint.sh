@@ -1,21 +1,36 @@
 #!/bin/bash
 set -e
 
+# Ensure we're in the app directory (WORKDIR is /app, but be explicit)
+cd /app || exit 1
+
 # Load environment variables from .env if it exists
 if [ -f /app/.env ]; then
     export $(cat /app/.env | grep -v '^#' | xargs)
 fi
 
-# Set defaults
-API_PORT=${API_PORT:-9090}
+# Set defaults (8080 for Start9, can be overridden)
+API_PORT=${API_PORT:-8080}
 PIPELINE_INTERVAL_SECONDS=${PIPELINE_INTERVAL_SECONDS:-600}
 DB_PATH=${DB_PATH:-/app/data/bxs.sqlite}
 
 # Initialize database if it doesn't exist
 if [ ! -f "$DB_PATH" ]; then
     echo "Initializing database at $DB_PATH..."
+    echo "Current directory: $(pwd)"
+    
+    # Copy schema file from /app/schema.sql to /app/data/schema.sql
+    # (Volume mount at /app/data overwrites the directory, so we copy it at runtime)
     mkdir -p "$(dirname "$DB_PATH")"
-    python3 code/cli.py --init --db "$DB_PATH" || echo "Database initialization failed, continuing..."
+    if [ -f /app/schema.sql ]; then
+        cp /app/schema.sql /app/data/schema.sql
+        echo "Copied schema file from /app/schema.sql to /app/data/schema.sql"
+    else
+        echo "ERROR: Schema file not found at /app/schema.sql"
+        exit 1
+    fi
+    
+    python3 code/cli.py --init --db "$DB_PATH" --schema /app/data/schema.sql || echo "Database initialization failed, continuing..."
 fi
 
 # Function to handle shutdown

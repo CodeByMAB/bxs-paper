@@ -1,0 +1,45 @@
+version: "3.8"
+
+services:
+  main:
+    image: start9/bitcoin-seconds/main:0.1.0
+    container_name: bitcoin-seconds
+    restart: unless-stopped
+
+    ports:
+      - "8080:8080"
+    
+    volumes:
+      - main:/app/data
+      - ./start9/.env:/app/.env:ro
+    
+    environment:
+      - API_PORT=8080
+      - DB_PATH=/app/data/bxs.sqlite
+      - PIPELINE_INTERVAL_SECONDS=${PIPELINE_INTERVAL_SECONDS:-600}
+      - MOCK_MODE=${MOCK_MODE:-true}
+      - ALERT_DROP_PCT=${ALERT_DROP_PCT:-0.2}
+      - ALERT_WINDOW_DAYS=${ALERT_WINDOW_DAYS:-14}
+      - T_MIN_SECS=${T_MIN_SECS:-1000}
+      - MU_MIN_SATS_PER_S=${MU_MIN_SATS_PER_S:-0.000001}
+    
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  main:
+    driver: local
+
+networks:
+  default:
+    name: bitcoin-seconds-network

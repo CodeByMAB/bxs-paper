@@ -4,6 +4,14 @@ Data Pipeline: Fetch from mempool.space + wallet RPC, write to SQLite.
 
 Connects to local Bitcoin node and mempool.space API to populate
 the schema defined in data/schema.sql. Includes mock adapters for testing.
+
+Computes per-block metrics:
+- I(t): Protocol expansion rate [s⁻¹]
+- W(t): Balance [sats]
+- A(t): Value-weighted coin age [s]
+- i(t), μ(t): Income/spending rates [sats/s]
+- SSR(t): Surplus-to-Spending Ratio
+- f(t): Durability-adjusted flow [sats/s]
 """
 import sqlite3
 import os
@@ -323,8 +331,8 @@ def pipeline_step(conn: sqlite3.Connection, height: int):
     if not wallet_data:
         return
 
-    # Compute SSR and f (would need baselines from DB)
-    # For now, use defaults
+    # Compute SSR(t) and f(t) per paper formulas
+    # Use default baselines (would ideally load from DB rolling medians)
     t = int(time.time())
     r = 2 * 365 * 24 * 3600  # 2 years
     t_min = 1_000

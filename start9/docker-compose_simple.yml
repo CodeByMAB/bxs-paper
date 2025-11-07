@@ -1,0 +1,7 @@
+version: "3.8"
+services:
+  main:
+    image: bxs:0.1.0
+    restart: unless-stopped
+
+
