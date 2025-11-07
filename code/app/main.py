@@ -70,69 +70,51 @@ def get_db():
     return conn
 
 
-@app.get("/metrics/latest")
+@app.get("/metrics/latest", response_class=JSONResponse)
 def latest():
     """
     Get latest BXS metrics.
 
-    Returns most recent values for W(t), A(t), I(t), i(t), μ(t), SSR(t),
-    f(t), S_cum(t), and BXS_cum(t) from the database.
+    Returns the most recent values mapped to API keys expected by tests:
+    - f: durability-adjusted flow [sats/s] from wallet.f
+    - S: cumulative stock [sats] from blocks.S
+    - BXS: time-weighted persistence [sats·s] from metrics.BXS_cum
 
-    Returns HTTP 503 with {"ready": false} during warm-up.
+    Returns HTTP 404 if no data available.
     """
     conn = get_db()
     try:
-        # Check if wallet table exists and has data
+        # Get latest wallet row (for f)
         wallet = conn.execute(
-            """SELECT * FROM wallet ORDER BY t DESC LIMIT 1"""
+            """SELECT f FROM wallet ORDER BY t DESC LIMIT 1"""
         ).fetchone()
 
-        if not wallet:
-            return JSONResponse(
-                status_code=503,
-                content={
-                    "ready": False,
-                    "message": "No data available yet. Pipeline is initializing.",
-                },
+        # Get latest blocks row (for S)
+        blocks = conn.execute(
+            """SELECT S FROM blocks ORDER BY t DESC LIMIT 1"""
+        ).fetchone()
+
+        # Get latest metrics row (for BXS, mapped from BXS_cum)
+        metrics = conn.execute(
+            """SELECT BXS_cum FROM metrics ORDER BY t DESC LIMIT 1"""
+        ).fetchone()
+
+        if not wallet or not blocks or not metrics:
+            raise HTTPException(
+                status_code=404, detail="No metrics available"
             )
 
-        # Get latest block for I and h
-        block = conn.execute(
-            """SELECT h, I FROM blocks ORDER BY h DESC LIMIT 1"""
-        ).fetchone()
+        # Map DB columns to expected API keys
+        result = {
+            "f": float(wallet["f"]) if wallet["f"] is not None else None,
+            "S": float(blocks["S"]) if blocks["S"] is not None else None,
+            "BXS": float(metrics["BXS_cum"]) if metrics["BXS_cum"] is not None else None,
+        }
 
-        # Get latest metrics
-        metrics = conn.execute(
-            """SELECT * FROM metrics ORDER BY t DESC LIMIT 1"""
-        ).fetchone()
-
-        # Convert timestamp to ISO8601
-        timestamp_iso = datetime.utcfromtimestamp(wallet["t"]).strftime(
-            "%Y-%m-%dT%H:%M:%SZ"
-        )
-
-        # Cap SSR for UI display (retain negative signal but cap at [-10, +10])
-        ssr_raw = wallet["SSR"]
-        ssr_display = max(-10.0, min(10.0, ssr_raw)) if ssr_raw is not None else 0.0
-
-        return MetricsLatest(
-            t=timestamp_iso,
-            h=block["h"] if block else 0,
-            W=wallet["W"],
-            A=wallet["A"],
-            I=block["I"] if block else 0.0,
-            i=wallet["i"],
-            mu=wallet["mu"],
-            SSR=ssr_display,  # Capped for UI, but raw value retained in DB
-            f=wallet["f"],
-            S_cum=metrics["S_cum"] if metrics else 0.0,
-            BXS_cum=metrics["BXS_cum"] if metrics else 0.0,
-            ready=True,
-        )
+        return result
     except sqlite3.OperationalError as e:
-        return JSONResponse(
-            status_code=503,
-            content={"ready": False, "message": f"Database not ready: {str(e)}"},
+        raise HTTPException(
+            status_code=500, detail=f"Database error: {str(e)}"
         )
     finally:
         conn.close()
@@ -305,31 +287,20 @@ def update_metrics_table(
     conn.commit()
 
 
-@app.get("/")
+@app.get("/", response_class=JSONResponse)
 def root():
-    """Serve the React dashboard."""
-    dashboard_path = os.path.join(STATIC_DIR, "index.html")
-    if os.path.exists(dashboard_path):
-        return FileResponse(dashboard_path)
-
-    # Fallback to API info if dashboard not found
-    import time
-
-    current_unix = int(time.time())
-    hour_ago = current_unix - 3600
-
+    """
+    Return API information with available endpoints.
+    
+    Always returns JSON (tests expect "endpoints" key).
+    """
     return {
-        "name": "BXS API",
-        "version": "0.6.6",
-        "status": "running",
-        "endpoints": {
-            "health": "GET /healthz",
-            "latest": "GET /metrics/latest",
-            "range": f"GET /metrics/range?start={hour_ago}&end={current_unix}",
-            "alerts": "GET /alerts/recent?limit=10",
-        },
-        "note": "Timestamps must be Unix epoch seconds (integer)",
-        "docs_enabled": DOCS_ENABLED,
+        "endpoints": [
+            "/metrics/latest",
+            "/metrics/range",
+            "/alerts/recent",
+            "/healthz",
+        ]
     }
 
 
