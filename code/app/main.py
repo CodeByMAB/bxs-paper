@@ -6,7 +6,7 @@ import os
 import sqlite3
 import json
 from datetime import datetime
-from typing import List, Dict, Optional
+from typing import List, Dict
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
@@ -37,6 +37,7 @@ if os.path.exists(STATIC_DIR):
 
 class MetricsLatest(BaseModel):
     """Latest BXS metrics (per BXS whitepaper v0.6.7)."""
+
     t: str  # ISO8601 timestamp
     h: int  # block height
     W: float  # balance/holdings [sats]
@@ -73,10 +74,10 @@ def get_db():
 def latest():
     """
     Get latest BXS metrics.
-    
-    Returns most recent values for W(t), A(t), I(t), i(t), μ(t), SSR(t), 
+
+    Returns most recent values for W(t), A(t), I(t), i(t), μ(t), SSR(t),
     f(t), S_cum(t), and BXS_cum(t) from the database.
-    
+
     Returns HTTP 503 with {"ready": false} during warm-up.
     """
     conn = get_db()
@@ -89,7 +90,10 @@ def latest():
         if not wallet:
             return JSONResponse(
                 status_code=503,
-                content={"ready": False, "message": "No data available yet. Pipeline is initializing."}
+                content={
+                    "ready": False,
+                    "message": "No data available yet. Pipeline is initializing.",
+                },
             )
 
         # Get latest block for I and h
@@ -103,12 +107,14 @@ def latest():
         ).fetchone()
 
         # Convert timestamp to ISO8601
-        timestamp_iso = datetime.utcfromtimestamp(wallet["t"]).strftime("%Y-%m-%dT%H:%M:%SZ")
+        timestamp_iso = datetime.utcfromtimestamp(wallet["t"]).strftime(
+            "%Y-%m-%dT%H:%M:%SZ"
+        )
 
         # Cap SSR for UI display (retain negative signal but cap at [-10, +10])
         ssr_raw = wallet["SSR"]
         ssr_display = max(-10.0, min(10.0, ssr_raw)) if ssr_raw is not None else 0.0
-        
+
         return MetricsLatest(
             t=timestamp_iso,
             h=block["h"] if block else 0,
@@ -126,7 +132,7 @@ def latest():
     except sqlite3.OperationalError as e:
         return JSONResponse(
             status_code=503,
-            content={"ready": False, "message": f"Database not ready: {str(e)}"}
+            content={"ready": False, "message": f"Database not ready: {str(e)}"},
         )
     finally:
         conn.close()
@@ -140,10 +146,10 @@ def range_metrics(
 ):
     """
     Get BXS metrics in time range.
-    
+
     Returns time series of W(t), A(t), i(t), μ(t), SSR(t), f(t), S_cum(t), BXS_cum(t)
     for the specified time period [start, end].
-    
+
     Supports aggregation by block, hour, or day.
     """
     conn = get_db()
@@ -163,20 +169,24 @@ def range_metrics(
 
         data = []
         for row in rows:
-            timestamp_iso = datetime.utcfromtimestamp(row["t"]).strftime("%Y-%m-%dT%H:%M:%SZ")
-            data.append({
-                "t": timestamp_iso,
-                "h": row["h"] if row["h"] else 0,
-                "W": row["W"],
-                "A": row["A"],
-                "i": row["i"],
-                "mu": row["mu"],
-                "SSR": row["SSR"],
-                "f": row["f"],
-                "S_cum": row["S_cum"] if row["S_cum"] else 0.0,
-                "BXS_cum": row["BXS_cum"] if row["BXS_cum"] else 0.0,
-            })
-        
+            timestamp_iso = datetime.utcfromtimestamp(row["t"]).strftime(
+                "%Y-%m-%dT%H:%M:%SZ"
+            )
+            data.append(
+                {
+                    "t": timestamp_iso,
+                    "h": row["h"] if row["h"] else 0,
+                    "W": row["W"],
+                    "A": row["A"],
+                    "i": row["i"],
+                    "mu": row["mu"],
+                    "SSR": row["SSR"],
+                    "f": row["f"],
+                    "S_cum": row["S_cum"] if row["S_cum"] else 0.0,
+                    "BXS_cum": row["BXS_cum"] if row["BXS_cum"] else 0.0,
+                }
+            )
+
         return {"data": data, "count": len(data), "step": step}
     finally:
         conn.close()
@@ -186,15 +196,16 @@ def range_metrics(
 def recent_alerts(days: int = Query(14, ge=1, le=365, description="Days to look back")):
     """
     Get recent alerts.
-    
+
     Returns alerts from the last N days, ordered by timestamp (newest first).
     """
     conn = get_db()
     try:
         # Calculate cutoff timestamp
         from time import time
+
         cutoff_t = int(time()) - (days * 86400)
-        
+
         rows = conn.execute(
             """SELECT * FROM alerts 
                WHERE t >= ? 
@@ -205,7 +216,9 @@ def recent_alerts(days: int = Query(14, ge=1, le=365, description="Days to look 
 
         alerts = []
         for row in rows:
-            timestamp_iso = datetime.utcfromtimestamp(row["t"]).strftime("%Y-%m-%dT%H:%M:%SZ")
+            timestamp_iso = datetime.utcfromtimestamp(row["t"]).strftime(
+                "%Y-%m-%dT%H:%M:%SZ"
+            )
             context = json.loads(row["context"]) if row["context"] else {}
             alerts.append(
                 Alert(
@@ -298,12 +311,13 @@ def root():
     dashboard_path = os.path.join(STATIC_DIR, "index.html")
     if os.path.exists(dashboard_path):
         return FileResponse(dashboard_path)
-    
+
     # Fallback to API info if dashboard not found
     import time
+
     current_unix = int(time.time())
     hour_ago = current_unix - 3600
-    
+
     return {
         "name": "BXS API",
         "version": "0.6.6",
@@ -339,9 +353,20 @@ def healthz():
 def serve_spa(full_path: str):
     """Serve React app for all non-API routes."""
     # Don't serve SPA for API routes
-    if full_path.startswith(("metrics", "alerts", "healthz", "docs", "openapi", "redoc", "static", "favicon.ico")):
+    if full_path.startswith(
+        (
+            "metrics",
+            "alerts",
+            "healthz",
+            "docs",
+            "openapi",
+            "redoc",
+            "static",
+            "favicon.ico",
+        )
+    ):
         raise HTTPException(status_code=404, detail="Not found")
-    
+
     dashboard_path = os.path.join(STATIC_DIR, "index.html")
     if os.path.exists(dashboard_path):
         return FileResponse(dashboard_path)

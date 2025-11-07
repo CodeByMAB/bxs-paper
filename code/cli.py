@@ -34,7 +34,7 @@ def init_db(db_path: str, schema_path: str):
             f"  - {os.path.abspath(schema_path)}\n"
             f"  - /app/data/schema.sql (if in Docker)"
         )
-    
+
     conn = sqlite3.connect(db_path)
     with open(schema_path, "r") as f:
         conn.executescript(f.read())
@@ -215,17 +215,19 @@ def main():
     )
 
     args = parser.parse_args()
-    
+
     # Set default schema path if not provided
     if not args.schema:
         # Check multiple possible locations (in order of preference)
         possible_paths = [
             "/app/data/schema.sql",  # Docker runtime (copied from /app/schema.sql by entrypoint)
-            "/app/schema.sql",       # Docker image (before volume mount)
-            "data/schema.sql",       # Relative path from project root
-            os.path.join(os.path.dirname(__file__), "..", "..", "data", "schema.sql"),  # Relative from code/cli.py
+            "/app/schema.sql",  # Docker image (before volume mount)
+            "data/schema.sql",  # Relative path from project root
+            os.path.join(
+                os.path.dirname(__file__), "..", "..", "data", "schema.sql"
+            ),  # Relative from code/cli.py
         ]
-        
+
         for path in possible_paths:
             abs_path = os.path.abspath(path)
             if os.path.exists(path) or os.path.exists(abs_path):
@@ -244,7 +246,7 @@ def main():
         conn = init_db(args.db, args.schema)
     else:
         conn = sqlite3.connect(args.db)
-    
+
     conn.row_factory = sqlite3.Row  # Enable row access by column name
 
     try:

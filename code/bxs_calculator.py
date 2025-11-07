@@ -32,7 +32,7 @@ def compute_ssr(
 ) -> float:
     """
     Compute Surplus-to-Spending Ratio (SSR).
-    
+
     Paper formula (Section 3):
     SSR(t) = (s(t) + r·i(t) - CP(t)) / (max{t, t_min} · max{μ(t), μ_min})
 
@@ -65,7 +65,7 @@ def compute_f(
 ) -> float:
     """
     Compute durability-adjusted flow of durable claims f(t).
-    
+
     Paper formula (eq:flow, Section 4):
     f(t) = i(t) × (A(t)/A₀) × (I(t)/I₀) × SSR(t)
 
@@ -117,7 +117,7 @@ def integrate_s(
 ) -> List[float]:
     """
     Integrate cumulative durable claims S(T) = ∫₀ᵀ f(t) dt.
-    
+
     Paper formula (eq:stock, Section 5):
     S(T) = ∫₀ᵀ f(t) dt
 
@@ -145,7 +145,7 @@ def integrate_bxs(
 ) -> List[float]:
     """
     Integrate Bitcoin-Seconds BXS(T) = ∫₀ᵀ S(t) dt.
-    
+
     Paper formula (eq:bxs, Section 5):
     BXS(T) = ∫₀ᵀ S(t) dt = ∫₀ᵀ ∫₀ᵗ f(τ) dτ dt
 
@@ -175,7 +175,7 @@ def compute_baseline_bxscore(
 
     Paper formula (eq:bxs_core, Section 5):
     BXS_core(T) = ∫₀ᵀ W(t) dt
-    
+
     This is the baseline comparator that omits durability adjustments.
 
     Args:
