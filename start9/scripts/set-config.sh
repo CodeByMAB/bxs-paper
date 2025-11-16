@@ -1,28 +1,16 @@
 #!/bin/bash
 
 # Read configuration from stdin (JSON format from Start9)
-CONFIG_JSON=$(cat)
+export CONFIG_JSON=$(cat)
 
-# Parse JSON and extract values
-# Start9 passes config as JSON with nested structure
-MOCK_MODE=$(echo "$CONFIG_JSON" | grep -o '"MOCK_MODE":[^,}]*' | cut -d':' -f2 | tr -d ' "')
-BITCOIN_RPC_USER=$(echo "$CONFIG_JSON" | grep -o '"BITCOIN_RPC_USER":[^,}]*' | cut -d':' -f2 | tr -d ' "')
-BITCOIN_RPC_PASSWORD=$(echo "$CONFIG_JSON" | grep -o '"BITCOIN_RPC_PASSWORD":[^,}]*' | cut -d':' -f2 | tr -d ' "')
-MEMPOOL_API_URL=$(echo "$CONFIG_JSON" | grep -o '"MEMPOOL_API_URL":[^,}]*' | cut -d':' -f2 | tr -d ' "')
-ALERT_DROP_PCT=$(echo "$CONFIG_JSON" | grep -o '"ALERT_DROP_PCT":[^,}]*' | cut -d':' -f2 | tr -d ' "')
-ALERT_WINDOW_DAYS=$(echo "$CONFIG_JSON" | grep -o '"ALERT_WINDOW_DAYS":[^,}]*' | cut -d':' -f2 | tr -d ' "')
-T_MIN_SECS=$(echo "$CONFIG_JSON" | grep -o '"T_MIN_SECS":[^,}]*' | cut -d':' -f2 | tr -d ' "')
-MU_MIN_SATS_PER_S=$(echo "$CONFIG_JSON" | grep -o '"MU_MIN_SATS_PER_S":[^,}]*' | cut -d':' -f2 | tr -d ' "')
-PIPELINE_INTERVAL_SECONDS=$(echo "$CONFIG_JSON" | grep -o '"PIPELINE_INTERVAL_SECONDS":[^,}]*' | cut -d':' -f2 | tr -d ' "')
-
-# Use Python for proper JSON parsing (more reliable)
-python3 <<PYTHON_SCRIPT
+# Use Python for proper JSON parsing (read from environment variable)
+python3 <<'PYTHON_SCRIPT'
 import json
 import sys
 import os
 
 try:
-    config = json.load(sys.stdin)
+    config = json.loads(os.environ['CONFIG_JSON'])
     
     # Extract values with defaults (keys are kebab-case from config spec)
     mock_mode = str(config.get('mock-mode', True)).lower() == 'true'
